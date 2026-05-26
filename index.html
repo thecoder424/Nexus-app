@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Nexus</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root { --accent: #63ffb4; --accent-text: #000; }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    background: #080808;
+    font-family: 'DM Sans', sans-serif;
+    color: #fff;
+    min-height: 100vh;
+  }
+
+  /* ─── SECTIONS (not fixed, just shown/hidden) ─── */
+  .section { display: none; }
+  .section.active { display: block; }
+
+  /* ─── CAMERA ─── */
+  #camSection {
+    min-height: 100vh;
+    display: none;
+    flex-direction: column;
+  }
+  #camSection.active { display: flex; }
+
+  .top-bar {
+    padding: 52px 24px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  .logo { font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
+  .logo span { color: var(--accent); }
+  .logo-sub { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.18em; color: #333; text-transform: uppercase; }
+
+  .vf-wrap { flex: 1; margin: 0 16px; display: flex; align-items: center; justify-content: center; min-height: 0; }
+
+  .vf {
+    width: 100%;
+    aspect-ratio: 3/4;
+    border-radius: 20px;
+    overflow: hidden;
+    position: relative;
+    background: #0d0d0d;
+    border: 1px solid #1e1e1e;
+  }
+
+  #videoEl { width: 100%; height: 100%; object-fit: cover; display: none; }
+  #videoEl.on { display: block; }
+  #previewEl { width: 100%; height: 100%; object-fit: cover; display: none; }
+  #previewEl.on { display: block; }
+
+  .vf-hint {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 12px;
+  }
+  .vf-hint .ico { font-size: 44px; opacity: 0.12; }
+  .vf-hint .txt { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.16em; color: #252525; text-transform: uppercase; text-align: center; line-height: 1.8; }
+
+  .corner { position: absolute; width: 24px; height: 24px; border-color: var(--accent); border-style: solid; opacity: 0.5; }
+  .tl { top: 14px; left: 14px; border-width: 2px 0 0 2px; border-radius: 3px 0 0 0; }
+  .tr { top: 14px; right: 14px; border-width: 2px 2px 0 0; border-radius: 0 3px 0 0; }
+  .bl { bottom: 14px; left: 14px; border-width: 0 0 2px 2px; border-radius: 0 0 0 3px; }
+  .br { bottom: 14px; right: 14px; border-width: 0 2px 2px 0; border-radius: 0 0 3px 0; }
+
+  .scan { position: absolute; left: 14px; right: 14px; height: 1px; background: linear-gradient(to right, transparent, var(--accent), transparent); opacity: 0.3; animation: scan 3s ease-in-out infinite; }
+  @keyframes scan { 0% { top: 14px; opacity: 0; } 10% { opacity: 0.3; } 90% { opacity: 0.3; } 100% { top: calc(100% - 14px); opacity: 0; } }
+
+  .cam-controls {
+    padding: 20px 28px 50px;
+    display: flex; align-items: center; justify-content: space-between;
+    flex-shrink: 0;
+  }
+
+  .icon-btn {
+    width: 52px; height: 52px; border-radius: 16px;
+    background: #161616; border: 1px solid #1e1e1e;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; flex-shrink: 0;
+  }
+  .icon-btn svg { width: 20px; height: 20px; opacity: 0.4; }
+  .icon-btn:active { transform: scale(0.92); }
+
+  .shutter {
+    width: 78px; height: 78px; border-radius: 50%;
+    background: #fff; border: 4px solid #444;
+    cursor: pointer; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .shutter::after { content:''; width: 62px; height: 62px; border-radius: 50%; background: #fff; border: 3px solid #ddd; }
+  .shutter:active { transform: scale(0.92); }
+
+  .go-btn {
+    width: 78px; height: 78px; border-radius: 50%;
+    background: var(--accent); border: none;
+    font-family: 'Syne', sans-serif; font-size: 10px; font-weight: 800;
+    letter-spacing: 0.05em; color: var(--accent-text); text-align: center; line-height: 1.2; text-transform: uppercase;
+    cursor: pointer; flex-shrink: 0;
+    display: none; align-items: center; justify-content: center;
+  }
+  .go-btn.on { display: flex; }
+  .go-btn:active { transform: scale(0.92); }
+
+  .retake-btn { display: none; }
+  .retake-btn.on { display: flex; }
+
+  .cam-hint { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.16em; color: #222; text-transform: uppercase; text-align: center; padding-bottom: 8px; flex-shrink: 0; }
+
+  /* ─── LOADING ─── */
+  #loadSection {
+    min-height: 100vh;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 28px;
+  }
+  #loadSection.active { display: flex; }
+
+  .load-logo { font-family: 'Syne', sans-serif; font-size: 28px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.12; }
+  .load-logo span { color: var(--accent); opacity: 1; }
+
+  .rings { position: relative; display: flex; align-items: center; justify-content: center; }
+  .ring { width: 76px; height: 76px; border-radius: 50%; border: 2px solid var(--accent); animation: ripple 1.5s ease-out infinite; }
+  .ring2 { position: absolute; width: 76px; height: 76px; border-radius: 50%; border: 2px solid var(--accent); animation: ripple 1.5s ease-out 0.6s infinite; opacity: 0.3; }
+  @keyframes ripple { 0% { transform: scale(0.8); opacity: 0.7; } 100% { transform: scale(1.8); opacity: 0; } }
+
+  .load-txt { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.22em; color: #3a3a3a; text-transform: uppercase; animation: blink 1.5s ease-in-out infinite; }
+  @keyframes blink { 0%,100%{opacity:0.3;} 50%{opacity:1;} }
+
+  /* ─── CARD SECTION — normal page flow, scrolls naturally ─── */
+  #cardSection {
+    display: none;
+    padding: 40px 18px 80px;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+  }
+  #cardSection.active { display: flex; }
+
+  /* ─── DISCOVERY CARD ─── */
+  .card {
+    width: 100%; max-width: 400px;
+    border-radius: 22px; overflow: hidden;
+    background: #0d0d0d; border: 1px solid #1e1e1e;
+    box-shadow: 0 0 60px rgba(0,0,0,0.9), 0 0 40px color-mix(in srgb, var(--accent) 6%, transparent);
+    animation: up 0.5s ease both;
+  }
+  @keyframes up { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+
+  .card-photo { width: 100%; position: relative; background: #111; }
+  .card-photo img { width: 100%; height: auto; display: block; max-height: 400px; object-fit: contain; }
+  .card-photo .grad { position: absolute; bottom: 0; left: 0; right: 0; height: 90px; background: linear-gradient(to bottom, transparent, #0d0d0d); }
+  .card-photo .glow-blob { position: absolute; width: 200px; height: 200px; border-radius: 50%; background: radial-gradient(circle, var(--accent), transparent 70%); opacity: 0.07; top: -50px; right: -50px; pointer-events: none; }
+
+  .tags { display: flex; gap: 6px; padding: 14px 16px 6px; flex-wrap: wrap; }
+  .tag { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.1em; padding: 4px 10px; border-radius: 20px; text-transform: uppercase; }
+  .tag.hi { background: var(--accent); color: var(--accent-text); font-weight: 500; }
+  .tag.lo { background: #161616; color: #444; border: 1px solid #1e1e1e; }
+
+  .card-body { padding: 6px 18px 20px; }
+  .card-loc { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.16em; color: #3a3a3a; text-transform: uppercase; margin-bottom: 6px; }
+  .card-name { font-family: 'Syne', sans-serif; font-size: 28px; font-weight: 800; color: #fff; line-height: 1.05; margin-bottom: 14px; }
+  .card-name .aw { color: var(--accent); }
+  .divider { height: 1px; background: linear-gradient(to right, var(--accent), transparent); opacity: 0.18; margin-bottom: 16px; }
+  .card-desc { font-size: 14px; color: #888; line-height: 1.72; margin-bottom: 20px; }
+  .fact-label { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.18em; color: var(--accent); text-transform: uppercase; margin-bottom: 8px; }
+  .card-fact { font-size: 14px; color: #555; line-height: 1.72; }
+
+  /* ─── SHARE ROW ─── */
+  .share-wrap { padding: 16px 18px 20px; border-top: 1px solid #141414; }
+  .share-lbl { font-family: 'DM Mono', monospace; font-size: 8px; letter-spacing: 0.2em; color: #252525; text-transform: uppercase; margin-bottom: 14px; text-align: center; }
+  .share-row { display: flex; justify-content: space-between; align-items: center; }
+  .sico { display: flex; flex-direction: column; align-items: center; gap: 5px; cursor: pointer; flex: 1; }
+  .sico:active { opacity: 0.6; transform: scale(0.88); }
+  .sico-ring { width: 40px; height: 40px; border-radius: 13px; display: flex; align-items: center; justify-content: center; }
+  .sico-name { font-family: 'DM Mono', monospace; font-size: 7px; color: #333; text-transform: uppercase; }
+  .sico svg { width: 18px; height: 18px; }
+  .ig .sico-ring { background: radial-gradient(circle at 30% 110%, #f09433, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888); }
+  .tk .sico-ring { background: #010101; border: 1px solid #222; }
+  .wa .sico-ring { background: #25D366; }
+  .im .sico-ring { background: linear-gradient(135deg,#29CC52,#1eaa3f); }
+  .tw .sico-ring { background: #000; border: 1px solid #222; }
+  .fb .sico-ring { background: #1877F2; }
+  .sc .sico-ring { background: #FFFC00; }
+
+  .card-foot { font-family: 'Syne', sans-serif; font-size: 11px; font-weight: 800; letter-spacing: 0.16em; color: #181818; text-transform: uppercase; text-align: center; padding: 4px 0 18px; }
+
+  /* ─── REPOST CARD ─── */
+  .repost-btn {
+    margin-top: 20px;
+    width: 100%; max-width: 400px;
+    background: var(--accent); color: var(--accent-text);
+    font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 800;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    padding: 16px; border-radius: 16px; border: none;
+    cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px;
+  }
+  .repost-btn:active { transform: scale(0.97); }
+
+  .new-btn {
+    margin-top: 12px;
+    width: 100%; max-width: 400px;
+    background: transparent; color: #333;
+    font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase;
+    padding: 14px; border-radius: 16px; border: 1px solid #1a1a1a;
+    cursor: pointer;
+  }
+
+  /* ─── REPOST MODAL ─── */
+  .modal-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.92);
+    z-index: 100;
+    align-items: center; justify-content: center;
+    padding: 24px;
+  }
+  .modal-overlay.on { display: flex; flex-direction: column; gap: 16px; }
+
+  /* The shareable card — portrait, gorgeous */
+  .share-card {
+    width: 100%; max-width: 380px;
+    border-radius: 24px;
+    overflow: hidden;
+    position: relative;
+    background: #080808;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.9);
+  }
+
+  .share-card-photo {
+    width: 100%;
+    height: 260px;
+    position: relative;
+    overflow: hidden;
+  }
+  .share-card-photo img { width: 100%; height: 100%; object-fit: cover; }
+  .share-card-photo .photo-grad {
+    position: absolute; inset: 0;
+    background: linear-gradient(to bottom, rgba(8,8,8,0.1) 0%, rgba(8,8,8,0.95) 100%);
+  }
+
+  .share-card-photo .floating-name {
+    position: absolute; bottom: 16px; left: 20px; right: 20px;
+    font-family: 'Syne', sans-serif; font-size: 30px; font-weight: 800;
+    color: #fff; line-height: 1.05;
+    text-shadow: 0 2px 20px rgba(0,0,0,0.8);
+  }
+  .share-card-photo .floating-name .aw { color: var(--accent); }
+
+  .share-card-body { padding: 16px 20px 20px; }
+
+  .share-tag-row { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
+  .share-tag { font-family: 'DM Mono', monospace; font-size: 8px; letter-spacing: 0.12em; padding: 3px 10px; border-radius: 20px; text-transform: uppercase; }
+  .share-tag.hi { background: var(--accent); color: var(--accent-text); font-weight: 500; }
+  .share-tag.lo { background: #161616; color: #3a3a3a; border: 1px solid #222; }
+
+  .share-divider { height: 1px; background: linear-gradient(to right, var(--accent), transparent); opacity: 0.2; margin-bottom: 14px; }
+
+  .share-fact-lbl { font-family: 'DM Mono', monospace; font-size: 8px; letter-spacing: 0.2em; color: var(--accent); text-transform: uppercase; margin-bottom: 8px; }
+  .share-fact-txt { font-size: 13px; color: #777; line-height: 1.65; margin-bottom: 16px; }
+
+  .share-card-foot {
+    display: flex; justify-content: space-between; align-items: center;
+    padding-top: 14px; border-top: 1px solid #141414;
+  }
+  .share-card-foot .brand { font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 800; letter-spacing: 0.14em; color: var(--accent); text-transform: uppercase; }
+  .share-card-foot .loc-txt { font-family: 'DM Mono', monospace; font-size: 8px; letter-spacing: 0.1em; color: #333; text-transform: uppercase; }
+
+  /* Accent glow strip at bottom of share card */
+  .share-card::after {
+    content: '';
+    position: absolute; bottom: 0; left: 0; right: 0; height: 3px;
+    background: var(--accent);
+  }
+
+  .modal-actions { display: flex; gap: 10px; width: 100%; max-width: 380px; }
+
+  .dl-btn {
+    flex: 1;
+    background: var(--accent); color: var(--accent-text);
+    font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 800;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 14px; border-radius: 14px; border: none; cursor: pointer;
+  }
+  .close-btn {
+    background: #161616; color: #555;
+    font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase;
+    padding: 14px 18px; border-radius: 14px; border: 1px solid #222; cursor: pointer;
+  }
+
+  /* ─── TOAST ─── */
+  .toast {
+    position: fixed; bottom: 28px; left: 50%;
+    transform: translateX(-50%) translateY(16px);
+    background: #161616; border: 1px solid #2a2a2a; color: #bbb;
+    font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.08em;
+    padding: 12px 22px; border-radius: 20px;
+    opacity: 0; transition: opacity 0.3s, transform 0.3s;
+    pointer-events: none; z-index: 999; max-width: 88vw; text-align: center;
+  }
+  .toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<!-- ── CAMERA ── -->
+<div id="camSection" class="active">
+  <div class="top-bar">
+    <div class="logo">NEX<span>US</span></div>
+    <div class="logo-sub">Point & discover</div>
+  </div>
+  <div class="vf-wrap">
+    <div class="vf">
+      <video id="videoEl" autoplay playsinline muted></video>
+      <img id="previewEl" alt="">
+      <div class="vf-hint" id="vfHint">
+        <div class="ico">📷</div>
+        <div class="txt">Point at any building,<br>object or landmark</div>
+      </div>
+      <div class="corner tl"></div><div class="corner tr"></div>
+      <div class="corner bl"></div><div class="corner br"></div>
+      <div class="scan"></div>
+    </div>
+  </div>
+  <div class="cam-controls">
+    <label class="icon-btn">
+      <input type="file" accept="image/*" id="fileIn" style="display:none">
+      <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+    </label>
+    <div class="shutter" id="shutterBtn"></div>
+    <button class="go-btn" id="goBtn">Identify<br>This</button>
+    <div class="icon-btn retake-btn" id="retakeBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
+    </div>
+  </div>
+  <div class="cam-hint" id="camHint">Tap shutter or upload a photo</div>
+</div>
+
+<!-- ── LOADING ── -->
+<div id="loadSection">
+  <div class="load-logo">NEX<span>US</span></div>
+  <div class="rings"><div class="ring"></div><div class="ring2"></div></div>
+  <div class="load-txt">Identifying...</div>
+</div>
+
+<!-- ── CARD ── -->
+<div id="cardSection">
+  <div class="card">
+    <div class="card-photo">
+      <img id="cardImg" alt="">
+      <div class="glow-blob"></div>
+      <div class="grad"></div>
+    </div>
+    <div class="tags">
+      <span class="tag hi" id="t1">Landmark</span>
+      <span class="tag lo" id="t2"></span>
+      <span class="tag lo" id="t3"></span>
+    </div>
+    <div class="card-body">
+      <div class="card-loc" id="cardLoc"></div>
+      <div class="card-name" id="cardName"></div>
+      <div class="divider"></div>
+      <div class="card-desc" id="cardDesc"></div>
+      <div class="fact-label">🔥 Wild Fact</div>
+      <div class="card-fact" id="cardFact"></div>
+    </div>
+    <div class="share-wrap">
+      <div class="share-lbl">Share this find</div>
+      <div class="share-row">
+        <div class="sico ig" onclick="share('instagram')"><div class="sico-ring"><svg viewBox="0 0 24 24" fill="white"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg></div><span class="sico-name">Instagram</span></div>
+        <div class="sico tk" onclick="share('tiktok')"><div class="sico-ring"><svg viewBox="0 0 24 24" fill="white"><path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.27 6.27 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.69a8.18 8.18 0 004.78 1.52V6.75a4.85 4.85 0 01-1.01-.06z"/></svg></div><span class="sico-name">TikTok</span></div>
+        <div class="sico wa" onclick="share('whatsapp')"><div class="sico-ring"><svg viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg></div><span class="sico-name">WhatsApp</span></div>
+        <div class="sico im" onclick="share('imessage')"><div class="sico-ring"><svg viewBox="0 0 24 24" fill="white"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/></svg></div><span class="sico-name">iMessage</span></div>
+        <div class="sico tw" onclick="share('twitter')"><div class="sico-ring"><svg viewBox="0 0 24 24" fill="white"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.747l7.73-8.835L1.254 2.25H8.08l4.253 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg></div><span class="sico-name">X</span></div>
+        <div class="sico fb" onclick="share('facebook')"><div class="sico-ring"><svg viewBox="0 0 24 24" fill="white"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg></div><span class="sico-name">Facebook</span></div>
+        <div class="sico sc" onclick="share('snapchat')"><div class="sico-ring"><svg viewBox="0 0 24 24" fill="black"><path d="M12.206.793c.99 0 4.347.276 5.93 3.821.529 1.193.403 3.219.317 4.814-.031.582-.081 1.192-.081 1.738.069.012 1.525.143 1.66.238a.883.883 0 01.397.747c-.07.372-.457.7-.945.754-.074.008-.547.038-.873.053-.055.013-.063.02-.063.049v.063c0 .088.014.19.042.304.098.402.285.977.744 1.604.459.629 1.217 1.264 2.449 1.736.243.094.479.175.711.241.253.073.43.235.503.446.07.218.021.467-.143.666a3.96 3.96 0 01-.548.537c-.231.189-.467.362-.709.524-.516.337-1.022.679-1.271 1.097-.281.471-.234.955-.217 1.33l.003.045c.033.478-.181.746-.496.838-.179.05-.429.057-.715.016-.537-.079-1.208-.293-1.804-.452-.374-.1-.699-.153-.987-.155a3.015 3.015 0 00-.697.071 9.33 9.33 0 00-.997.329c-.604.22-1.287.469-2.099.469-.744 0-1.44-.22-2.072-.432-.518-.175-.971-.337-1.347-.337-.317 0-.637.05-.985.153-.609.173-1.268.393-1.829.468a3.17 3.17 0 01-.431.029c-.315 0-.541-.067-.674-.199-.193-.188-.218-.489-.186-.876.025-.3.075-.699-.166-1.119-.231-.399-.74-.736-1.239-1.065a8.386 8.386 0 01-.724-.535 3.956 3.956 0 01-.548-.537c-.164-.199-.213-.448-.143-.666.073-.211.25-.373.503-.446.232-.066.468-.147.711-.241 1.232-.472 1.99-1.107 2.449-1.736.459-.627.646-1.202.744-1.604.028-.114.042-.216.042-.304v-.063c0-.029-.008-.036-.063-.049-.326-.015-.799-.045-.873-.053-.488-.054-.875-.382-.945-.754a.883.883 0 01.397-.747c.135-.095 1.591-.226 1.66-.238 0-.546-.05-1.156-.081-1.738-.086-1.595-.212-3.621.317-4.814C7.859 1.069 11.216.793 12.206.793z"/></svg></div><span class="sico-name">Snap</span></div>
+      </div>
+    </div>
+    <div class="card-foot">Nexus</div>
+  </div>
+
+  <button class="repost-btn" onclick="openRepost()">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+    Create Repost Card
+  </button>
+  <button class="new-btn" onclick="newScan()">⟳ Scan something new</button>
+</div>
+
+<!-- ── REPOST MODAL ── -->
+<div class="modal-overlay" id="modal">
+  <div class="share-card" id="shareCard">
+    <div class="share-card-photo">
+      <img id="shareImg" alt="">
+      <div class="photo-grad"></div>
+      <div class="floating-name" id="shareName"></div>
+    </div>
+    <div class="share-card-body">
+      <div class="share-tag-row" id="shareTags"></div>
+      <div class="share-divider"></div>
+      <div class="share-fact-lbl">🔥 Wild Fact</div>
+      <div class="share-fact-txt" id="shareFact"></div>
+      <div class="share-card-foot">
+        <div class="brand">NEXUS</div>
+        <div class="loc-txt" id="shareLoc"></div>
+      </div>
+    </div>
+  </div>
+  <div class="modal-actions">
+    <button class="dl-btn" onclick="downloadCard()">⬇ Save to Camera Roll</button>
+    <button class="close-btn" onclick="closeRepost()">Close</button>
+  </div>
+</div>
+
+<canvas id="hiddenCanvas" style="display:none"></canvas>
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script>
+// API handled by Cloudflare Worker
+
+const palette = [
+  {accent:'#63ffb4',text:'#000'},
+  {accent:'#3b9eff',text:'#000'},
+  {accent:'#ff5c3a',text:'#fff'},
+  {accent:'#a855f7',text:'#fff'},
+  {accent:'#FFD166',text:'#000'},
+];
+
+let col = palette[0];
+let captured = null;
+let stream = null;
+let result = null;
+
+function setColor(c) {
+  col = c;
+  document.documentElement.style.setProperty('--accent', c.accent);
+  document.documentElement.style.setProperty('--accent-text', c.text);
+}
+
+function randColor() { setColor(palette[Math.floor(Math.random()*palette.length)]); }
+
+function show(id) {
+  ['camSection','loadSection','cardSection'].forEach(function(s){
+    document.getElementById(s).classList.remove('active');
+  });
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0,0);
+}
+
+function toast(msg, ms) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('on');
+  setTimeout(function(){ t.classList.remove('on'); }, ms||3000);
+}
+
+// Camera
+async function startCam() {
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false});
+    var v = document.getElementById('videoEl');
+    v.srcObject = stream;
+    v.classList.add('on');
+    document.getElementById('vfHint').style.display = 'none';
+  } catch(e){}
+}
+
+document.getElementById('shutterBtn').onclick = function(){
+  var v = document.getElementById('videoEl');
+  if(!v.srcObject){ document.getElementById('fileIn').click(); return; }
+  var c = document.getElementById('hiddenCanvas');
+  c.width = v.videoWidth; c.height = v.videoHeight;
+  c.getContext('2d').drawImage(v,0,0);
+  captured = c.toDataURL('image/jpeg',0.85);
+  showPreview(captured);
+};
+
+document.getElementById('fileIn').onchange = function(e){
+  var f = e.target.files[0]; if(!f) return;
+  var r = new FileReader();
+  r.onload = function(ev){ captured = ev.target.result; showPreview(captured); };
+  r.readAsDataURL(f);
+};
+
+function showPreview(src){
+  var p = document.getElementById('previewEl');
+  p.src = src; p.classList.add('on');
+  document.getElementById('videoEl').classList.remove('on');
+  document.getElementById('vfHint').style.display = 'none';
+  document.getElementById('shutterBtn').style.display = 'none';
+  document.querySelector('.icon-btn').style.display = 'none';
+  document.getElementById('goBtn').classList.add('on');
+  document.getElementById('retakeBtn').classList.add('on');
+  document.getElementById('camHint').textContent = 'Tap "Identify This" to discover';
+}
+
+function retake(){
+  captured = null;
+  var p = document.getElementById('previewEl');
+  p.classList.remove('on'); p.src = '';
+  document.getElementById('shutterBtn').style.display = '';
+  document.querySelector('.icon-btn').style.display = '';
+  document.getElementById('goBtn').classList.remove('on');
+  document.getElementById('retakeBtn').classList.remove('on');
+  document.getElementById('camHint').textContent = 'Tap shutter or upload a photo';
+  if(stream) document.getElementById('videoEl').classList.add('on');
+  else document.getElementById('vfHint').style.display = '';
+}
+document.getElementById('retakeBtn').onclick = retake;
+
+function newScan(){ retake(); randColor(); show('camSection'); }
+
+function compress(dataUrl, maxW, q){
+  return new Promise(function(res){
+    var img = new Image();
+    img.onload = function(){
+      var c = document.createElement('canvas');
+      var w=img.width, h=img.height;
+      if(w>maxW){h=Math.round(h*maxW/w);w=maxW;}
+      c.width=w;c.height=h;
+      c.getContext('2d').drawImage(img,0,0,w,h);
+      res(c.toDataURL('image/jpeg',q));
+    };
+    img.src = dataUrl;
+  });
+}
+
+document.getElementById('goBtn').onclick = async function(){
+  if(!captured) return;
+  randColor();
+  show('loadSection');
+  try {
+    var comp = await compress(captured, 768, 0.7);
+    var b64 = comp.split(',')[1];
+
+    var resp = await fetch('https://nexusworker.robel-8cd.workers.dev',{
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        
+        
+        
+      },
+      body: JSON.stringify({
+        model:'claude-haiku-4-5-20251001',
+        max_tokens:1000,
+        messages:[{
+          role:'user',
+          content:[
+            {type:'image',source:{type:'base64',media_type:'image/jpeg',data:b64}},
+            {type:'text',text:'Identify this photo. Return ONLY raw JSON, no markdown, no backticks:\n{"name":"Full name","accentWord":"last or key word of name","location":"City/place or empty","tag1":"Category: Landmark Nature Art Urban Animal Food Product","tag2":"one word tag","tag3":"year/era or empty","description":"Start with: This is [name]. Then 2-3 sentences of key facts.","trivia":"Start with Wild fact: or Did you know: — one jaw-dropping fact, 1-2 sentences."}'}
+          ]
+        }]
+      })
+    });
+
+    if(!resp.ok){ var e=await resp.text(); throw new Error('API '+resp.status+': '+e.slice(0,80)); }
+
+    var data = await resp.json();
+    var raw = data.content.map(function(b){return b.text||'';}).join('');
+    var m = raw.match(/\{[\s\S]*\}/);
+    if(!m) throw new Error('No JSON found');
+    result = JSON.parse(m[0]);
+
+    // Populate card
+    document.getElementById('cardImg').src = captured;
+    var t1 = document.getElementById('t1');
+    t1.textContent = result.tag1||'Discovery';
+    t1.style.background = col.accent; t1.style.color = col.text;
+    var t2=document.getElementById('t2'); t2.textContent=result.tag2||''; t2.style.display=result.tag2?'':'none';
+    var t3=document.getElementById('t3'); t3.textContent=result.tag3||''; t3.style.display=result.tag3?'':'none';
+    document.getElementById('cardLoc').textContent = result.location ? '📍 '+result.location : '';
+    var accent = result.accentWord || result.name.split(' ').pop();
+    var rest = result.name.replace(new RegExp(accent.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'$'),'').trim();
+    document.getElementById('cardName').innerHTML = (rest?rest+'<br>':'')+' <span class="aw">'+accent+'</span>';
+    document.getElementById('cardDesc').textContent = result.description||'';
+    document.getElementById('cardFact').textContent = result.trivia||'';
+
+    // Populate share card
+    document.getElementById('shareImg').src = captured;
+    document.getElementById('shareName').innerHTML = (rest?rest+'<br>':'')+' <span class="aw">'+accent+'</span>';
+    document.getElementById('shareFact').textContent = result.trivia||'';
+    document.getElementById('shareLoc').textContent = result.location ? '📍 '+result.location : '';
+    var tagsHtml = '<span class="share-tag hi" style="background:'+col.accent+';color:'+col.text+'">'+result.tag1+'</span>';
+    if(result.tag2) tagsHtml += ' <span class="share-tag lo">'+result.tag2+'</span>';
+    if(result.tag3) tagsHtml += ' <span class="share-tag lo">'+result.tag3+'</span>';
+    document.getElementById('shareTags').innerHTML = tagsHtml;
+
+    show('cardSection');
+
+  } catch(err){
+    show('camSection');
+    toast('Error: '+err.message, 5000);
+  }
+};
+
+// Share
+function share(platform){
+  var txt = (result?result.name:'') + '\n\n' + (result?result.description:'') + '\n\n' + (result?result.trivia:'') + '\n\n📍 Discovered on Nexus';
+  if(navigator.share){ navigator.share({title:'Nexus Discovery',text:txt}).catch(function(){}); return; }
+  if(platform==='twitter') window.open('https://twitter.com/intent/tweet?text='+encodeURIComponent(txt),'_blank');
+  else if(platform==='whatsapp') window.open('https://wa.me/?text='+encodeURIComponent(txt),'_blank');
+  else if(platform==='imessage') window.open('sms:&body='+encodeURIComponent(txt),'_blank');
+  else if(platform==='facebook') window.open('https://www.facebook.com/sharer/sharer.php?quote='+encodeURIComponent(txt),'_blank');
+  else { navigator.clipboard&&navigator.clipboard.writeText(txt); toast('Copied! Open '+platform+' and paste 🚀'); }
+}
+
+// Repost
+function openRepost(){ document.getElementById('modal').classList.add('on'); }
+function closeRepost(){ document.getElementById('modal').classList.remove('on'); }
+
+async function downloadCard(){
+  toast('Saving card...', 2000);
+  try {
+    var card = document.getElementById('shareCard');
+    var canvas = await html2canvas(card, {
+      backgroundColor: '#080808',
+      scale: 3,
+      useCORS: true,
+      allowTaint: true,
+      logging: false
+    });
+    canvas.toBlob(async function(blob){
+      var file = new File([blob],'nexus-card.png',{type:'image/png'});
+      if(navigator.canShare && navigator.canShare({files:[file]})){
+        await navigator.share({files:[file], title:'Nexus Discovery'});
+      } else {
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'nexus-card.png';
+        a.click();
+        toast('Card saved! Post it to your story 🚀', 3500);
+      }
+    },'image/png');
+  } catch(e){ toast('Save failed: '+e.message, 4000); }
+}
+
+// Init
+randColor();
+startCam();
+</script>
+</body>
+</html>
