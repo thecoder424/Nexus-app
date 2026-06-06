@@ -4,27 +4,42 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Nexus</title>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-  :root { --accent: #63ffb4; --accent-text: #000; }
-  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-
-  body {
-    background: #080808;
-    font-family: 'DM Sans', sans-serif;
-    color: #fff;
-    min-height: 100vh;
+  :root {
+    --gold: #C9A84C;
+    --gold-light: #E8C97A;
+    --black: #0a0a0a;
+    --grey1: #333;
+    --grey2: #666;
+    --grey3: #999;
+    --grey4: #bbb;
+    --grey5: #e5e5e5;
+    --grey6: #f5f5f7;
+    --white: #ffffff;
+    --rule: #f0f0f0;
   }
 
-  /* ─── SECTIONS (not fixed, just shown/hidden) ─── */
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    height: 100%;
+    background: var(--white);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    color: var(--black);
+    -webkit-font-smoothing: antialiased;
+  }
+
   .section { display: none; }
   .section.active { display: block; }
 
-  /* ─── CAMERA ─── */
+  /* ─── CAMERA SCREEN ─── */
   #camSection {
     min-height: 100vh;
+    min-height: 100dvh;
     display: none;
     flex-direction: column;
+    background: var(--white);
   }
   #camSection.active { display: flex; }
 
@@ -34,13 +49,34 @@
     justify-content: space-between;
     align-items: center;
     flex-shrink: 0;
+    border-bottom: 1px solid var(--rule);
   }
 
-  .logo { font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
-  .logo span { color: var(--accent); }
-  .logo-sub { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.18em; color: #333; text-transform: uppercase; }
+  .logo {
+    font-size: 16px;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--black);
+  }
+  .logo span { color: var(--gold); }
 
-  .vf-wrap { flex: 1; margin: 0 16px; display: flex; align-items: center; justify-content: center; min-height: 0; }
+  .logo-sub {
+    font-size: 10px;
+    font-weight: 400;
+    letter-spacing: 0.12em;
+    color: var(--grey4);
+    text-transform: uppercase;
+  }
+
+  .vf-wrap {
+    flex: 1;
+    padding: 20px 20px 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 0;
+  }
 
   .vf {
     width: 100%;
@@ -48,8 +84,8 @@
     border-radius: 20px;
     overflow: hidden;
     position: relative;
-    background: #0d0d0d;
-    border: 1px solid #1e1e1e;
+    background: var(--grey6);
+    border: 1px solid var(--rule);
   }
 
   #videoEl { width: 100%; height: 100%; object-fit: cover; display: none; }
@@ -62,250 +98,370 @@
     display: flex; flex-direction: column;
     align-items: center; justify-content: center; gap: 12px;
   }
-  .vf-hint .ico { font-size: 44px; opacity: 0.12; }
-  .vf-hint .txt { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.16em; color: #252525; text-transform: uppercase; text-align: center; line-height: 1.8; }
 
-  .corner { position: absolute; width: 24px; height: 24px; border-color: var(--accent); border-style: solid; opacity: 0.5; }
+  .vf-hint .ico {
+    width: 56px; height: 56px;
+    border-radius: 16px;
+    background: var(--white);
+    border: 1px solid var(--rule);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  }
+
+  .vf-hint .txt {
+    font-size: 12px;
+    font-weight: 400;
+    letter-spacing: 0.02em;
+    color: var(--grey4);
+    text-align: center;
+    line-height: 1.6;
+  }
+
+  /* Corner brackets */
+  .corner { position: absolute; width: 22px; height: 22px; border-color: var(--gold); border-style: solid; opacity: 0.7; }
   .tl { top: 14px; left: 14px; border-width: 2px 0 0 2px; border-radius: 3px 0 0 0; }
   .tr { top: 14px; right: 14px; border-width: 2px 2px 0 0; border-radius: 0 3px 0 0; }
   .bl { bottom: 14px; left: 14px; border-width: 0 0 2px 2px; border-radius: 0 0 0 3px; }
   .br { bottom: 14px; right: 14px; border-width: 0 2px 2px 0; border-radius: 0 0 3px 0; }
 
-  .scan { position: absolute; left: 14px; right: 14px; height: 1px; background: linear-gradient(to right, transparent, var(--accent), transparent); opacity: 0.3; animation: scan 3s ease-in-out infinite; }
-  @keyframes scan { 0% { top: 14px; opacity: 0; } 10% { opacity: 0.3; } 90% { opacity: 0.3; } 100% { top: calc(100% - 14px); opacity: 0; } }
+  /* Scan line */
+  .scan { position: absolute; left: 14px; right: 14px; height: 1px; background: linear-gradient(to right, transparent, var(--gold), transparent); opacity: 0.5; animation: scan 3s ease-in-out infinite; }
+  @keyframes scan { 0% { top: 14px; opacity: 0; } 10% { opacity: 0.5; } 90% { opacity: 0.5; } 100% { top: calc(100% - 14px); opacity: 0; } }
 
   .cam-controls {
-    padding: 20px 28px 50px;
+    padding: 20px 28px 48px;
     display: flex; align-items: center; justify-content: space-between;
     flex-shrink: 0;
   }
 
   .icon-btn {
-    width: 52px; height: 52px; border-radius: 16px;
-    background: #161616; border: 1px solid #1e1e1e;
+    width: 52px; height: 52px; border-radius: 50%;
+    background: var(--white); border: 1px solid var(--rule);
     display: flex; align-items: center; justify-content: center;
     cursor: pointer; flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
   }
-  .icon-btn svg { width: 20px; height: 20px; opacity: 0.4; }
-  .icon-btn:active { transform: scale(0.92); }
+  .icon-btn svg { width: 20px; height: 20px; opacity: 0.5; }
+  .icon-btn:active { transform: scale(0.93); background: var(--grey6); }
 
   .shutter {
-    width: 78px; height: 78px; border-radius: 50%;
-    background: #fff; border: 4px solid #444;
+    width: 76px; height: 76px; border-radius: 50%;
+    background: var(--black); border: none;
     cursor: pointer; flex-shrink: 0;
     display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
   }
-  .shutter::after { content:''; width: 62px; height: 62px; border-radius: 50%; background: #fff; border: 3px solid #ddd; }
-  .shutter:active { transform: scale(0.92); }
+  .shutter::after {
+    content: '';
+    width: 58px; height: 58px; border-radius: 50%;
+    background: var(--black); border: 2px solid rgba(255,255,255,0.15);
+  }
+  .shutter:active { transform: scale(0.93); }
 
   .go-btn {
-    width: 78px; height: 78px; border-radius: 50%;
-    background: var(--accent); border: none;
-    font-family: 'Syne', sans-serif; font-size: 10px; font-weight: 800;
-    letter-spacing: 0.05em; color: var(--accent-text); text-align: center; line-height: 1.2; text-transform: uppercase;
+    width: 76px; height: 76px; border-radius: 50%;
+    background: var(--gold); border: none;
+    font-size: 10px; font-weight: 700;
+    letter-spacing: 0.05em; color: var(--black); text-align: center; line-height: 1.2; text-transform: uppercase;
     cursor: pointer; flex-shrink: 0;
     display: none; align-items: center; justify-content: center;
+    box-shadow: 0 4px 20px rgba(201,168,76,0.35);
   }
   .go-btn.on { display: flex; }
-  .go-btn:active { transform: scale(0.92); }
+  .go-btn:active { transform: scale(0.93); }
 
   .retake-btn { display: none; }
   .retake-btn.on { display: flex; }
 
-  .cam-hint { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.16em; color: #222; text-transform: uppercase; text-align: center; padding-bottom: 8px; flex-shrink: 0; }
+  .cam-hint {
+    font-size: 11px; font-weight: 400;
+    letter-spacing: 0.06em; color: var(--grey4);
+    text-align: center; padding-bottom: 8px; flex-shrink: 0;
+    text-transform: uppercase;
+  }
 
-  /* ─── LOADING ─── */
+  /* ─── LOADING SCREEN ─── */
   #loadSection {
-    min-height: 100vh;
-    display: none;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 28px;
+    min-height: 100vh; min-height: 100dvh;
+    display: none; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 28px; background: var(--white);
   }
   #loadSection.active { display: flex; }
 
-  .load-logo { font-family: 'Syne', sans-serif; font-size: 28px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.12; }
-  .load-logo span { color: var(--accent); opacity: 1; }
+  .load-logo {
+    font-size: 16px; font-weight: 800;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--grey5);
+  }
+  .load-logo span { color: var(--gold); }
 
   .rings { position: relative; display: flex; align-items: center; justify-content: center; }
-  .ring { width: 76px; height: 76px; border-radius: 50%; border: 2px solid var(--accent); animation: ripple 1.5s ease-out infinite; }
-  .ring2 { position: absolute; width: 76px; height: 76px; border-radius: 50%; border: 2px solid var(--accent); animation: ripple 1.5s ease-out 0.6s infinite; opacity: 0.3; }
-  @keyframes ripple { 0% { transform: scale(0.8); opacity: 0.7; } 100% { transform: scale(1.8); opacity: 0; } }
+  .ring { width: 72px; height: 72px; border-radius: 50%; border: 2px solid var(--gold); animation: ripple 1.5s ease-out infinite; }
+  .ring2 { position: absolute; width: 72px; height: 72px; border-radius: 50%; border: 2px solid var(--gold); animation: ripple 1.5s ease-out 0.6s infinite; opacity: 0.3; }
+  @keyframes ripple { 0% { transform: scale(0.8); opacity: 0.8; } 100% { transform: scale(1.9); opacity: 0; } }
 
-  .load-txt { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.22em; color: #3a3a3a; text-transform: uppercase; animation: blink 1.5s ease-in-out infinite; }
+  .load-txt {
+    font-size: 11px; font-weight: 500;
+    letter-spacing: 0.14em; color: var(--grey4);
+    text-transform: uppercase; animation: blink 1.5s ease-in-out infinite;
+  }
   @keyframes blink { 0%,100%{opacity:0.3;} 50%{opacity:1;} }
 
-  /* ─── CARD SECTION — normal page flow, scrolls naturally ─── */
+  /* ─── CARD SCREEN ─── */
   #cardSection {
     display: none;
-    padding: 40px 18px 80px;
-    flex-direction: column;
+    overflow-y: scroll;
+    -webkit-overflow-scrolling: touch;
+    min-height: 100vh; min-height: 100dvh;
+    background: var(--grey6);
+    padding: 0 0 80px;
+  }
+  #cardSection.active { display: block; }
+
+  /* App header on card screen */
+  .card-screen-header {
+    padding: 52px 24px 16px;
+    display: flex;
+    justify-content: space-between;
     align-items: center;
-    min-height: 100vh;
+    background: var(--white);
+    border-bottom: 1px solid var(--rule);
+    position: sticky;
+    top: 0;
+    z-index: 10;
   }
-  #cardSection.active { display: flex; }
 
-  /* ─── DISCOVERY CARD ─── */
+  .new-scan-pill {
+    font-size: 11px; font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--black);
+    background: var(--white);
+    border: 1px solid var(--rule);
+    padding: 8px 16px; border-radius: 20px;
+    cursor: pointer;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+  }
+  .new-scan-pill:active { background: var(--grey6); }
+
+  /* ─── THE DISCOVERY CARD ─── */
   .card {
-    width: 100%; max-width: 400px;
-    border-radius: 22px; overflow: hidden;
-    background: #0d0d0d; border: 1px solid #1e1e1e;
-    box-shadow: 0 0 60px rgba(0,0,0,0.9), 0 0 40px color-mix(in srgb, var(--accent) 6%, transparent);
-    animation: up 0.5s ease both;
+    margin: 20px 16px 0;
+    border-radius: 20px;
+    overflow: hidden;
+    background: var(--white);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.06), 0 20px 48px rgba(0,0,0,0.08);
   }
-  @keyframes up { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
 
-  .card-photo { width: 100%; position: relative; background: #111; }
-  .card-photo img { width: 100%; height: auto; display: block; max-height: 400px; object-fit: contain; }
-  .card-photo .grad { position: absolute; bottom: 0; left: 0; right: 0; height: 90px; background: linear-gradient(to bottom, transparent, #0d0d0d); }
-  .card-photo .glow-blob { position: absolute; width: 200px; height: 200px; border-radius: 50%; background: radial-gradient(circle, var(--accent), transparent 70%); opacity: 0.07; top: -50px; right: -50px; pointer-events: none; }
+  .card-photo {
+    width: 100%; height: auto;
+    background: var(--grey6);
+    position: relative;
+    overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    min-height: 200px;
+  }
 
-  .tags { display: flex; gap: 6px; padding: 14px 16px 6px; flex-wrap: wrap; }
-  .tag { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.1em; padding: 4px 10px; border-radius: 20px; text-transform: uppercase; }
-  .tag.hi { background: var(--accent); color: var(--accent-text); font-weight: 500; }
-  .tag.lo { background: #161616; color: #444; border: 1px solid #1e1e1e; }
+  .card-photo img { width: 100%; height: auto; display: block; max-height: 380px; object-fit: contain; }
 
-  .card-body { padding: 6px 18px 20px; }
-  .card-loc { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.16em; color: #3a3a3a; text-transform: uppercase; margin-bottom: 6px; }
-  .card-name { font-family: 'Syne', sans-serif; font-size: 28px; font-weight: 800; color: #fff; line-height: 1.05; margin-bottom: 14px; }
-  .card-name .aw { color: var(--accent); }
-  .divider { height: 1px; background: linear-gradient(to right, var(--accent), transparent); opacity: 0.18; margin-bottom: 16px; }
-  .card-desc { font-size: 14px; color: #888; line-height: 1.72; margin-bottom: 20px; }
-  .fact-label { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.18em; color: var(--accent); text-transform: uppercase; margin-bottom: 8px; }
-  .card-fact { font-size: 14px; color: #555; line-height: 1.72; }
+  .gold-line { height: 3px; background: linear-gradient(to right, var(--gold), var(--gold-light), var(--gold)); }
 
-  /* ─── SHARE ROW ─── */
-  .share-wrap { padding: 16px 18px 20px; border-top: 1px solid #141414; }
-  .share-lbl { font-family: 'DM Mono', monospace; font-size: 8px; letter-spacing: 0.2em; color: #252525; text-transform: uppercase; margin-bottom: 14px; text-align: center; }
+  .card-body { padding: 20px 22px 0; }
+
+  .card-kicker {
+    font-size: 10px; font-weight: 600;
+    letter-spacing: 0.14em; color: var(--gold);
+    text-transform: uppercase; margin-bottom: 8px;
+  }
+
+  .card-name {
+    font-size: 28px; font-weight: 800;
+    color: var(--black); line-height: 1.08;
+    letter-spacing: -0.8px; margin-bottom: 6px;
+  }
+
+  .card-loc {
+    font-size: 11px; font-weight: 400;
+    color: var(--grey4); margin-bottom: 18px;
+  }
+
+  .card-rule { height: 1px; background: var(--rule); margin-bottom: 18px; }
+
+  .card-desc {
+    font-size: 15px; font-weight: 400;
+    color: var(--grey1); line-height: 1.74;
+    letter-spacing: -0.1px; margin-bottom: 20px;
+  }
+
+  .fact-box {
+    background: var(--black);
+    border-radius: 14px;
+    padding: 16px 18px;
+    margin-bottom: 24px;
+  }
+
+  .fact-label {
+    font-size: 9px; font-weight: 600;
+    letter-spacing: 0.16em; color: var(--gold);
+    text-transform: uppercase; margin-bottom: 8px;
+  }
+
+  .fact-text {
+    font-size: 14px; font-weight: 400;
+    color: #888; line-height: 1.7; letter-spacing: -0.1px;
+  }
+
+  /* Share icons */
+  .share-wrap {
+    padding: 16px 22px 20px;
+    border-top: 1px solid var(--rule);
+  }
+
+  .share-lbl {
+    font-size: 9px; font-weight: 600;
+    letter-spacing: 0.12em; color: var(--grey4);
+    text-transform: uppercase; margin-bottom: 14px; text-align: center;
+  }
+
   .share-row { display: flex; justify-content: space-between; align-items: center; }
-  .sico { display: flex; flex-direction: column; align-items: center; gap: 5px; cursor: pointer; flex: 1; }
-  .sico:active { opacity: 0.6; transform: scale(0.88); }
-  .sico-ring { width: 40px; height: 40px; border-radius: 13px; display: flex; align-items: center; justify-content: center; }
-  .sico-name { font-family: 'DM Mono', monospace; font-size: 7px; color: #333; text-transform: uppercase; }
+
+  .sico {
+    display: flex; flex-direction: column; align-items: center; gap: 5px;
+    cursor: pointer; flex: 1;
+    transition: transform 0.15s;
+  }
+  .sico:active { transform: scale(0.85); opacity: 0.7; }
+
+  .sico-ring {
+    width: 40px; height: 40px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+  }
+  .sico-name { font-size: 7px; font-weight: 500; color: var(--grey4); text-transform: uppercase; letter-spacing: 0.04em; }
   .sico svg { width: 18px; height: 18px; }
+
   .ig .sico-ring { background: radial-gradient(circle at 30% 110%, #f09433, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888); }
-  .tk .sico-ring { background: #010101; border: 1px solid #222; }
+  .tk .sico-ring { background: #010101; }
   .wa .sico-ring { background: #25D366; }
   .im .sico-ring { background: linear-gradient(135deg,#29CC52,#1eaa3f); }
-  .tw .sico-ring { background: #000; border: 1px solid #222; }
+  .tw .sico-ring { background: #000; }
   .fb .sico-ring { background: #1877F2; }
   .sc .sico-ring { background: #FFFC00; }
 
-  .card-foot { font-family: 'Syne', sans-serif; font-size: 11px; font-weight: 800; letter-spacing: 0.16em; color: #181818; text-transform: uppercase; text-align: center; padding: 4px 0 18px; }
+  .card-footer {
+    padding: 14px 22px 18px;
+    border-top: 1px solid var(--rule);
+    display: flex; justify-content: space-between; align-items: center;
+  }
 
-  /* ─── REPOST CARD ─── */
+  .footer-brand { font-size: 11px; font-weight: 600; letter-spacing: 0.1em; color: var(--grey5); text-transform: uppercase; }
+  .footer-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--gold); }
+
+  /* ─── REPOST BUTTON ─── */
+  .repost-wrap { margin: 16px 16px 0; }
+
   .repost-btn {
-    margin-top: 20px;
-    width: 100%; max-width: 400px;
-    background: var(--accent); color: var(--accent-text);
-    font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 800;
-    letter-spacing: 0.1em; text-transform: uppercase;
-    padding: 16px; border-radius: 16px; border: none;
+    width: 100%;
+    background: var(--black); color: var(--white);
+    font-size: 13px; font-weight: 700;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 16px; border-radius: 14px; border: none;
     cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.12);
   }
-  .repost-btn:active { transform: scale(0.97); }
+  .repost-btn:active { transform: scale(0.98); background: var(--grey1); }
 
-  .new-btn {
-    margin-top: 12px;
-    width: 100%; max-width: 400px;
-    background: transparent; color: #333;
-    font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase;
-    padding: 14px; border-radius: 16px; border: 1px solid #1a1a1a;
-    cursor: pointer;
-  }
-
-  /* ─── REPOST MODAL ─── */
+  /* ─── MODAL ─── */
   .modal-overlay {
-    display: none;
-    position: fixed; inset: 0;
-    background: rgba(0,0,0,0.92);
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     z-index: 100;
     align-items: center; justify-content: center;
     padding: 24px;
   }
-  .modal-overlay.on { display: flex; flex-direction: column; gap: 16px; }
+  .modal-overlay.on { display: flex; flex-direction: column; gap: 14px; }
 
-  /* The shareable card — portrait, gorgeous */
+  /* ─── SHARE CARD — Full Bleed Story Format ─── */
   .share-card {
-    width: 100%; max-width: 380px;
-    border-radius: 24px;
-    overflow: hidden;
-    position: relative;
-    background: #080808;
-    box-shadow: 0 30px 80px rgba(0,0,0,0.9);
+    width: 100%; max-width: 340px;
+    aspect-ratio: 9/16;
+    border-radius: 20px; overflow: hidden;
+    position: relative; background: #000;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 32px 80px rgba(0,0,0,0.5);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   }
 
-  .share-card-photo {
-    width: 100%;
-    height: 260px;
-    position: relative;
-    overflow: hidden;
-  }
-  .share-card-photo img { width: 100%; height: 100%; object-fit: cover; }
-  .share-card-photo .photo-grad {
-    position: absolute; inset: 0;
-    background: linear-gradient(to bottom, rgba(8,8,8,0.1) 0%, rgba(8,8,8,0.95) 100%);
+  .sc-photo { position: absolute; inset: 0; z-index: 0; }
+  .sc-photo img { width: 100%; height: 100%; object-fit: cover; object-position: center top; display: block; }
+
+  .sc-grad-top {
+    position: absolute; top: 0; left: 0; right: 0; height: 100px;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.45) 0%, transparent 100%);
+    z-index: 1;
   }
 
-  .share-card-photo .floating-name {
-    position: absolute; bottom: 16px; left: 20px; right: 20px;
-    font-family: 'Syne', sans-serif; font-size: 30px; font-weight: 800;
-    color: #fff; line-height: 1.05;
-    text-shadow: 0 2px 20px rgba(0,0,0,0.8);
-  }
-  .share-card-photo .floating-name .aw { color: var(--accent); }
-
-  .share-card-body { padding: 16px 20px 20px; }
-
-  .share-tag-row { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; }
-  .share-tag { font-family: 'DM Mono', monospace; font-size: 8px; letter-spacing: 0.12em; padding: 3px 10px; border-radius: 20px; text-transform: uppercase; }
-  .share-tag.hi { background: var(--accent); color: var(--accent-text); font-weight: 500; }
-  .share-tag.lo { background: #161616; color: #3a3a3a; border: 1px solid #222; }
-
-  .share-divider { height: 1px; background: linear-gradient(to right, var(--accent), transparent); opacity: 0.2; margin-bottom: 14px; }
-
-  .share-fact-lbl { font-family: 'DM Mono', monospace; font-size: 8px; letter-spacing: 0.2em; color: var(--accent); text-transform: uppercase; margin-bottom: 8px; }
-  .share-fact-txt { font-size: 13px; color: #777; line-height: 1.65; margin-bottom: 16px; }
-
-  .share-card-foot {
-    display: flex; justify-content: space-between; align-items: center;
-    padding-top: 14px; border-top: 1px solid #141414;
-  }
-  .share-card-foot .brand { font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 800; letter-spacing: 0.14em; color: var(--accent); text-transform: uppercase; }
-  .share-card-foot .loc-txt { font-family: 'DM Mono', monospace; font-size: 8px; letter-spacing: 0.1em; color: #333; text-transform: uppercase; }
-
-  /* Accent glow strip at bottom of share card */
-  .share-card::after {
-    content: '';
-    position: absolute; bottom: 0; left: 0; right: 0; height: 3px;
-    background: var(--accent);
+  .sc-grad-bottom {
+    position: absolute; bottom: 0; left: 0; right: 0; height: 72%;
+    background: linear-gradient(to top, rgba(0,0,0,0.97) 0%, rgba(0,0,0,0.88) 30%, rgba(0,0,0,0.6) 55%, transparent 100%);
+    z-index: 1;
   }
 
-  .modal-actions { display: flex; gap: 10px; width: 100%; max-width: 380px; }
+  .sc-corner { position: absolute; width: 16px; height: 16px; border-color: rgba(201,168,76,0.65); border-style: solid; z-index: 3; }
+  .sc-tl { top: 48px; left: 14px; border-width: 2px 0 0 2px; border-radius: 2px 0 0 0; }
+  .sc-tr { top: 48px; right: 14px; border-width: 2px 2px 0 0; border-radius: 0 2px 0 0; }
+
+  .sc-logo { position: absolute; top: 16px; left: 18px; z-index: 4; font-size: 11px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: #fff; }
+  .sc-logo span { color: #C9A84C; }
+
+  .sc-body { position: absolute; bottom: 0; left: 0; right: 0; padding: 0 18px 22px; z-index: 5; }
+
+  .sc-kicker { font-family: 'DM Mono', monospace; font-size: 8px; font-weight: 600; letter-spacing: 0.16em; color: #C9A84C; text-transform: uppercase; margin-bottom: 5px; display: flex; align-items: center; gap: 7px; }
+  .sc-kicker-line { width: 14px; height: 1.5px; background: #C9A84C; border-radius: 2px; flex-shrink: 0; }
+
+  .sc-name { font-size: 26px; font-weight: 900; color: #fff; line-height: 1.05; letter-spacing: -0.7px; margin-bottom: 3px; text-shadow: 0 2px 16px rgba(0,0,0,0.6); }
+  .sc-loc { font-size: 10px; color: rgba(255,255,255,0.4); margin-bottom: 11px; }
+
+  .sc-gold-line { height: 1.5px; background: linear-gradient(to right, #C9A84C, rgba(201,168,76,0.1)); margin-bottom: 11px; }
+
+  .sc-desc { font-size: 11px; color: rgba(255,255,255,0.68); line-height: 1.65; letter-spacing: -0.1px; margin-bottom: 10px; }
+
+  .sc-fact-box { background: rgba(8,8,8,0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(201,168,76,0.2); border-radius: 11px; padding: 10px 13px; margin-bottom: 13px; }
+  .sc-fact-label { font-family: 'DM Mono', monospace; font-size: 7.5px; font-weight: 600; letter-spacing: 0.16em; color: #C9A84C; text-transform: uppercase; margin-bottom: 4px; }
+  .sc-fact-text { font-size: 10.5px; color: rgba(255,255,255,0.62); line-height: 1.65; letter-spacing: -0.1px; }
+
+  .sc-footer { display: flex; align-items: center; gap: 6px; }
+  .sc-footer-brand { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; color: rgba(255,255,255,0.22); text-transform: uppercase; }
+  .sc-footer-dot { width: 5px; height: 5px; border-radius: 50%; background: #C9A84C; }
+
+  /* Modal actions */
+  .modal-actions { display: flex; gap: 10px; width: 100%; max-width: 360px; }
 
   .dl-btn {
-    flex: 1;
-    background: var(--accent); color: var(--accent-text);
-    font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 800;
-    letter-spacing: 0.08em; text-transform: uppercase;
-    padding: 14px; border-radius: 14px; border: none; cursor: pointer;
+    flex: 1; background: var(--black); color: var(--white);
+    font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 14px; border-radius: 12px; border: none; cursor: pointer;
   }
+  .dl-btn:active { background: var(--grey1); }
+
   .close-btn {
-    background: #161616; color: #555;
-    font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase;
-    padding: 14px 18px; border-radius: 14px; border: 1px solid #222; cursor: pointer;
+    background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.6);
+    font-size: 11px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 14px 18px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.15); cursor: pointer;
   }
 
-  /* ─── TOAST ─── */
+  /* Toast */
   .toast {
     position: fixed; bottom: 28px; left: 50%;
     transform: translateX(-50%) translateY(16px);
-    background: #161616; border: 1px solid #2a2a2a; color: #bbb;
-    font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.08em;
+    background: var(--black); color: #aaa;
+    font-size: 11px; font-weight: 500; letter-spacing: 0.06em;
     padding: 12px 22px; border-radius: 20px;
     opacity: 0; transition: opacity 0.3s, transform 0.3s;
     pointer-events: none; z-index: 999; max-width: 88vw; text-align: center;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
   }
   .toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
 </style>
@@ -316,7 +472,7 @@
 <div id="camSection" class="active">
   <div class="top-bar">
     <div class="logo">NEX<span>US</span></div>
-    <div class="logo-sub">Point & discover</div>
+    <div class="logo-sub">Point & Discover</div>
   </div>
   <div class="vf-wrap">
     <div class="vf">
@@ -334,12 +490,12 @@
   <div class="cam-controls">
     <label class="icon-btn">
       <input type="file" accept="image/*" id="fileIn" style="display:none">
-      <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
     </label>
     <div class="shutter" id="shutterBtn"></div>
     <button class="go-btn" id="goBtn">Identify<br>This</button>
     <div class="icon-btn retake-btn" id="retakeBtn">
-      <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="1.5"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
     </div>
   </div>
   <div class="cam-hint" id="camHint">Tap shutter or upload a photo</div>
@@ -354,25 +510,28 @@
 
 <!-- ── CARD ── -->
 <div id="cardSection">
+  <div class="card-screen-header">
+    <div class="logo">NEX<span style="color:var(--gold)">US</span></div>
+    <button class="new-scan-pill" onclick="newScan()">⟳ New Scan</button>
+  </div>
+
   <div class="card">
     <div class="card-photo">
       <img id="cardImg" alt="">
-      <div class="glow-blob"></div>
-      <div class="grad"></div>
     </div>
-    <div class="tags">
-      <span class="tag hi" id="t1">Landmark</span>
-      <span class="tag lo" id="t2"></span>
-      <span class="tag lo" id="t3"></span>
-    </div>
+    <div class="gold-line"></div>
     <div class="card-body">
-      <div class="card-loc" id="cardLoc"></div>
+      <div class="card-kicker" id="cardKicker"></div>
       <div class="card-name" id="cardName"></div>
-      <div class="divider"></div>
+      <div class="card-loc" id="cardLoc"></div>
+      <div class="card-rule"></div>
       <div class="card-desc" id="cardDesc"></div>
-      <div class="fact-label">🔥 Wild Fact</div>
-      <div class="card-fact" id="cardFact"></div>
+      <div class="fact-box">
+        <div class="fact-label">🔥 Wild Fact</div>
+        <div class="fact-text" id="cardFact"></div>
+      </div>
     </div>
+
     <div class="share-wrap">
       <div class="share-lbl">Share this find</div>
       <div class="share-row">
@@ -385,32 +544,48 @@
         <div class="sico sc" onclick="share('snapchat')"><div class="sico-ring"><svg viewBox="0 0 24 24" fill="black"><path d="M12.206.793c.99 0 4.347.276 5.93 3.821.529 1.193.403 3.219.317 4.814-.031.582-.081 1.192-.081 1.738.069.012 1.525.143 1.66.238a.883.883 0 01.397.747c-.07.372-.457.7-.945.754-.074.008-.547.038-.873.053-.055.013-.063.02-.063.049v.063c0 .088.014.19.042.304.098.402.285.977.744 1.604.459.629 1.217 1.264 2.449 1.736.243.094.479.175.711.241.253.073.43.235.503.446.07.218.021.467-.143.666a3.96 3.96 0 01-.548.537c-.231.189-.467.362-.709.524-.516.337-1.022.679-1.271 1.097-.281.471-.234.955-.217 1.33l.003.045c.033.478-.181.746-.496.838-.179.05-.429.057-.715.016-.537-.079-1.208-.293-1.804-.452-.374-.1-.699-.153-.987-.155a3.015 3.015 0 00-.697.071 9.33 9.33 0 00-.997.329c-.604.22-1.287.469-2.099.469-.744 0-1.44-.22-2.072-.432-.518-.175-.971-.337-1.347-.337-.317 0-.637.05-.985.153-.609.173-1.268.393-1.829.468a3.17 3.17 0 01-.431.029c-.315 0-.541-.067-.674-.199-.193-.188-.218-.489-.186-.876.025-.3.075-.699-.166-1.119-.231-.399-.74-.736-1.239-1.065a8.386 8.386 0 01-.724-.535 3.956 3.956 0 01-.548-.537c-.164-.199-.213-.448-.143-.666.073-.211.25-.373.503-.446.232-.066.468-.147.711-.241 1.232-.472 1.99-1.107 2.449-1.736.459-.627.646-1.202.744-1.604.028-.114.042-.216.042-.304v-.063c0-.029-.008-.036-.063-.049-.326-.015-.799-.045-.873-.053-.488-.054-.875-.382-.945-.754a.883.883 0 01.397-.747c.135-.095 1.591-.226 1.66-.238 0-.546-.05-1.156-.081-1.738-.086-1.595-.212-3.621.317-4.814C7.859 1.069 11.216.793 12.206.793z"/></svg></div><span class="sico-name">Snap</span></div>
       </div>
     </div>
-    <div class="card-foot">Nexus</div>
+
+    <div class="card-footer">
+      <div class="footer-brand">Nexus</div>
+      <div class="footer-dot"></div>
+    </div>
   </div>
 
-  <button class="repost-btn" onclick="openRepost()">
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
-    Create Repost Card
-  </button>
-  <button class="new-btn" onclick="newScan()">⟳ Scan something new</button>
+  <div class="repost-wrap">
+    <button class="repost-btn" onclick="openRepost()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+      Create Repost Card
+    </button>
+  </div>
 </div>
 
-<!-- ── REPOST MODAL ── -->
+<!-- ── MODAL ── -->
 <div class="modal-overlay" id="modal">
   <div class="share-card" id="shareCard">
-    <div class="share-card-photo">
-      <img id="shareImg" alt="">
-      <div class="photo-grad"></div>
-      <div class="floating-name" id="shareName"></div>
-    </div>
-    <div class="share-card-body">
-      <div class="share-tag-row" id="shareTags"></div>
-      <div class="share-divider"></div>
-      <div class="share-fact-lbl">🔥 Wild Fact</div>
-      <div class="share-fact-txt" id="shareFact"></div>
-      <div class="share-card-foot">
-        <div class="brand">NEXUS</div>
-        <div class="loc-txt" id="shareLoc"></div>
+    <!-- Full bleed photo -->
+    <div class="sc-photo"><img id="shareImg" alt=""></div>
+    <!-- Gradients -->
+    <div class="sc-grad-top"></div>
+    <div class="sc-grad-bottom"></div>
+    <!-- Corner brackets -->
+    <div class="sc-corner sc-tl"></div>
+    <div class="sc-corner sc-tr"></div>
+    <!-- Logo top left -->
+    <div class="sc-logo">NEX<span>US</span></div>
+    <!-- Content overlay at bottom -->
+    <div class="sc-body">
+      <div class="sc-kicker"><div class="sc-kicker-line"></div><span id="scKicker"></span></div>
+      <div class="sc-name" id="scName"></div>
+      <div class="sc-loc" id="scLoc"></div>
+      <div class="sc-gold-line"></div>
+      <div class="sc-desc" id="scDesc"></div>
+      <div class="sc-fact-box">
+        <div class="sc-fact-label">🔥 Wild Fact</div>
+        <div class="sc-fact-text" id="scFact"></div>
+      </div>
+      <div class="sc-footer">
+        <div class="sc-footer-brand">Nexus</div>
+        <div class="sc-footer-dot"></div>
       </div>
     </div>
   </div>
@@ -425,32 +600,14 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
-// API handled by Cloudflare Worker
-
-const palette = [
-  {accent:'#63ffb4',text:'#000'},
-  {accent:'#3b9eff',text:'#000'},
-  {accent:'#ff5c3a',text:'#fff'},
-  {accent:'#a855f7',text:'#fff'},
-  {accent:'#FFD166',text:'#000'},
-];
-
-let col = palette[0];
-let captured = null;
-let stream = null;
-let result = null;
-
-function setColor(c) {
-  col = c;
-  document.documentElement.style.setProperty('--accent', c.accent);
-  document.documentElement.style.setProperty('--accent-text', c.text);
-}
-
-function randColor() { setColor(palette[Math.floor(Math.random()*palette.length)]); }
+var captured = null;
+var stream = null;
+var result = null;
 
 function show(id) {
   ['camSection','loadSection','cardSection'].forEach(function(s){
-    document.getElementById(s).classList.remove('active');
+    var el = document.getElementById(s);
+    el.classList.remove('active');
   });
   document.getElementById(id).classList.add('active');
   window.scrollTo(0,0);
@@ -463,13 +620,11 @@ function toast(msg, ms) {
   setTimeout(function(){ t.classList.remove('on'); }, ms||3000);
 }
 
-// Camera
 async function startCam() {
   try {
     stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false});
     var v = document.getElementById('videoEl');
-    v.srcObject = stream;
-    v.classList.add('on');
+    v.srcObject = stream; v.classList.add('on');
     document.getElementById('vfHint').style.display = 'none';
   } catch(e){}
 }
@@ -515,41 +670,35 @@ function retake(){
   if(stream) document.getElementById('videoEl').classList.add('on');
   else document.getElementById('vfHint').style.display = '';
 }
-document.getElementById('retakeBtn').onclick = retake;
 
-function newScan(){ retake(); randColor(); show('camSection'); }
+document.getElementById('retakeBtn').onclick = retake;
+function newScan(){ retake(); show('camSection'); }
 
 function compress(dataUrl, maxW, q){
   return new Promise(function(res){
     var img = new Image();
     img.onload = function(){
       var c = document.createElement('canvas');
-      var w=img.width, h=img.height;
+      var w=img.width,h=img.height;
       if(w>maxW){h=Math.round(h*maxW/w);w=maxW;}
       c.width=w;c.height=h;
       c.getContext('2d').drawImage(img,0,0,w,h);
       res(c.toDataURL('image/jpeg',q));
     };
-    img.src = dataUrl;
+    img.src=dataUrl;
   });
 }
 
 document.getElementById('goBtn').onclick = async function(){
   if(!captured) return;
-  randColor();
   show('loadSection');
   try {
-    var comp = await compress(captured, 768, 0.7);
+    var comp = await compress(captured,768,0.7);
     var b64 = comp.split(',')[1];
 
-    var resp = await fetch('https://nexusworker.robel-8cd.workers.dev',{
+    var resp = await fetch('https://nexusworker.robel-8cd.workers.dev/',{
       method:'POST',
-      headers:{
-        'Content-Type':'application/json',
-        
-        
-        
-      },
+      headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
         model:'claude-haiku-4-5-20251001',
         max_tokens:1000,
@@ -557,7 +706,7 @@ document.getElementById('goBtn').onclick = async function(){
           role:'user',
           content:[
             {type:'image',source:{type:'base64',media_type:'image/jpeg',data:b64}},
-            {type:'text',text:'Identify this photo. Return ONLY raw JSON, no markdown, no backticks:\n{"name":"Full name","accentWord":"last or key word of name","location":"City/place or empty","tag1":"Category: Landmark Nature Art Urban Animal Food Product","tag2":"one word tag","tag3":"year/era or empty","description":"Start with: This is [name]. Then 2-3 sentences of key facts.","trivia":"Start with Wild fact: or Did you know: — one jaw-dropping fact, 1-2 sentences."}'}
+            {type:'text',text:'Identify this photo. Return ONLY raw JSON, no markdown, no backticks:\n{"name":"Full name","location":"City/place or empty","tag1":"Category: Landmark Nature Art Urban Animal Food Product","tag2":"one word tag","tag3":"year/era or empty","description":"Start with: This is [name]. Then 2-3 sentences of key facts.","trivia":"Start with Wild fact: or Did you know: — one jaw-dropping fact, 1-2 sentences."}'}
           ]
         }]
       })
@@ -571,29 +720,22 @@ document.getElementById('goBtn').onclick = async function(){
     if(!m) throw new Error('No JSON found');
     result = JSON.parse(m[0]);
 
-    // Populate card
+    // Populate discovery card
     document.getElementById('cardImg').src = captured;
-    var t1 = document.getElementById('t1');
-    t1.textContent = result.tag1||'Discovery';
-    t1.style.background = col.accent; t1.style.color = col.text;
-    var t2=document.getElementById('t2'); t2.textContent=result.tag2||''; t2.style.display=result.tag2?'':'none';
-    var t3=document.getElementById('t3'); t3.textContent=result.tag3||''; t3.style.display=result.tag3?'':'none';
-    document.getElementById('cardLoc').textContent = result.location ? '📍 '+result.location : '';
-    var accent = result.accentWord || result.name.split(' ').pop();
-    var rest = result.name.replace(new RegExp(accent.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'$'),'').trim();
-    document.getElementById('cardName').innerHTML = (rest?rest+'<br>':'')+' <span class="aw">'+accent+'</span>';
-    document.getElementById('cardDesc').textContent = result.description||'';
-    document.getElementById('cardFact').textContent = result.trivia||'';
+    document.getElementById('cardKicker').textContent = [result.tag1, result.location, result.tag3].filter(Boolean).join(' · ');
+    document.getElementById('cardName').textContent = result.name || '';
+    document.getElementById('cardLoc').textContent = result.location ? '📍 ' + result.location : '';
+    document.getElementById('cardDesc').textContent = result.description || '';
+    document.getElementById('cardFact').textContent = result.trivia || '';
 
     // Populate share card
     document.getElementById('shareImg').src = captured;
-    document.getElementById('shareName').innerHTML = (rest?rest+'<br>':'')+' <span class="aw">'+accent+'</span>';
-    document.getElementById('shareFact').textContent = result.trivia||'';
-    document.getElementById('shareLoc').textContent = result.location ? '📍 '+result.location : '';
-    var tagsHtml = '<span class="share-tag hi" style="background:'+col.accent+';color:'+col.text+'">'+result.tag1+'</span>';
-    if(result.tag2) tagsHtml += ' <span class="share-tag lo">'+result.tag2+'</span>';
-    if(result.tag3) tagsHtml += ' <span class="share-tag lo">'+result.tag3+'</span>';
-    document.getElementById('shareTags').innerHTML = tagsHtml;
+    document.getElementById('scTag').textContent = result.tag1 || 'Discovery';
+    document.getElementById('scKicker').textContent = [result.tag1, result.location, result.tag3].filter(Boolean).join(' · ');
+    document.getElementById('scName').textContent = result.name || '';
+    document.getElementById('scLoc').textContent = result.location ? '📍 ' + result.location : '';
+    document.getElementById('scDesc').textContent = result.description || '';
+    document.getElementById('scFact').textContent = result.trivia || '';
 
     show('cardSection');
 
@@ -603,7 +745,6 @@ document.getElementById('goBtn').onclick = async function(){
   }
 };
 
-// Share
 function share(platform){
   var txt = (result?result.name:'') + '\n\n' + (result?result.description:'') + '\n\n' + (result?result.trivia:'') + '\n\n📍 Discovered on Nexus';
   if(navigator.share){ navigator.share({title:'Nexus Discovery',text:txt}).catch(function(){}); return; }
@@ -614,25 +755,18 @@ function share(platform){
   else { navigator.clipboard&&navigator.clipboard.writeText(txt); toast('Copied! Open '+platform+' and paste 🚀'); }
 }
 
-// Repost
 function openRepost(){ document.getElementById('modal').classList.add('on'); }
 function closeRepost(){ document.getElementById('modal').classList.remove('on'); }
 
 async function downloadCard(){
-  toast('Saving card...', 2000);
+  toast('Saving...', 2000);
   try {
     var card = document.getElementById('shareCard');
-    var canvas = await html2canvas(card, {
-      backgroundColor: '#080808',
-      scale: 3,
-      useCORS: true,
-      allowTaint: true,
-      logging: false
-    });
+    var canvas = await html2canvas(card,{backgroundColor:'#ffffff',scale:3,useCORS:true,logging:false});
     canvas.toBlob(async function(blob){
       var file = new File([blob],'nexus-card.png',{type:'image/png'});
       if(navigator.canShare && navigator.canShare({files:[file]})){
-        await navigator.share({files:[file], title:'Nexus Discovery'});
+        await navigator.share({files:[file],title:'Nexus Discovery'});
       } else {
         var a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
@@ -641,11 +775,9 @@ async function downloadCard(){
         toast('Card saved! Post it to your story 🚀', 3500);
       }
     },'image/png');
-  } catch(e){ toast('Save failed: '+e.message, 4000); }
+  } catch(e){ toast('Error: '+e.message, 4000); }
 }
 
-// Init
-randColor();
 startCam();
 </script>
 </body>
