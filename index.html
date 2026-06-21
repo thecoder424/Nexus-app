@@ -163,6 +163,10 @@
 <div id="camSection" class="active">
   <div class="top-bar">
     <div class="logo">NEX<span>US</span></div>
+    <div id="locPill" style="display:none; align-items:center; gap:5px; background:#f5f5f7; border:1px solid #f0f0f0; padding:5px 10px; border-radius:20px;">
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="#C9A84C"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5A2.5 2.5 0 1112 6a2.5 2.5 0 010 5.5z"/></svg>
+      <span style="font-size:9px; font-weight:500; letter-spacing:0.04em; color:#999; text-transform:uppercase; max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Location on</span>
+    </div>
     <div class="logo-sub">Point & Discover</div>
   </div>
   <div class="vf-wrap">
@@ -288,6 +292,38 @@
 <script>
 var WORKER = 'https://nexusworker.robel-8cd.workers.dev/';
 var captured = null;
+var userLocation = null; // {lat, lng, label} once resolved
+var locationStatus = 'idle'; // idle | requesting | granted | denied | unavailable
+
+function getLocation() {
+  if (locationStatus === 'granted' || locationStatus === 'requesting') return;
+  if (!navigator.geolocation) { locationStatus = 'unavailable'; return; }
+
+  locationStatus = 'requesting';
+  navigator.geolocation.getCurrentPosition(
+    async function(pos) {
+      var lat = pos.coords.latitude, lng = pos.coords.longitude;
+      var label = '';
+      try {
+        var r = await fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lng + '&zoom=18&addressdetails=1', {
+          headers: { 'Accept': 'application/json' }
+        });
+        var d = await r.json();
+        var a = d.address || {};
+        var parts = [a.house_number ? (a.house_number + ' ' + (a.road || '')) : a.road, a.neighbourhood || a.suburb, a.city || a.town, a.state].filter(Boolean);
+        label = parts.join(', ') || d.display_name || '';
+      } catch(e) {}
+      userLocation = { lat: lat, lng: lng, label: label };
+      locationStatus = 'granted';
+      var pill = document.getElementById('locPill');
+      if (pill) { pill.style.display = 'flex'; pill.querySelector('span').textContent = label || 'Location on'; }
+    },
+    function(err) {
+      locationStatus = 'denied';
+    },
+    { enableHighAccuracy: true, timeout: 8000, maximumAge: 300000 }
+  );
+}
 var stream = null;
 var result = null;
 
@@ -447,6 +483,10 @@ document.getElementById('goBtn').onclick = async function() {
       ? 'The user tapped a specific spot in their photo to mark exactly what they want identified, and this image has been cropped tightly around that point. Identify the specific subject centered in this cropped image — be precise and specific (exact building name, exact product, etc), not a general scene description. Return ONLY raw JSON, no markdown, no backticks:\\n{"name":"Full name","location":"City/place or empty","tag1":"Category: Landmark Nature Art Urban Animal Food Product","tag2":"one word tag","tag3":"year/era or empty","description":"Start with: This is [name]. Then 2-3 sentences of key facts. If you are not fully certain of the exact identity, say so plainly instead of inventing details.","trivia":"Start with Wild fact: or Did you know: — one jaw-dropping fact, 1-2 sentences. Only include if you are confident it is accurate."}'
       : 'Identify the single most prominent, central, or closest subject in this photo. If multiple buildings, objects, or items are visible, focus only on the one that is largest in frame, most centered, or clearly the main focal point — not the general scene. Be specific (e.g. name the exact building, not "a city street"). If you are not fully certain of the exact identity, say so plainly instead of inventing details. Return ONLY raw JSON, no markdown, no backticks:\\n{"name":"Full name","location":"City/place or empty","tag1":"Category: Landmark Nature Art Urban Animal Food Product","tag2":"one word tag","tag3":"year/era or empty","description":"Start with: This is [name]. Then 2-3 sentences of key facts.","trivia":"Start with Wild fact: or Did you know: — one jaw-dropping fact, 1-2 sentences. Only include if you are confident it is accurate."}';
 
+    if (userLocation && userLocation.label) {
+      promptText = 'IMPORTANT CONTEXT: This photo was taken near "' + userLocation.label + '" (GPS: ' + userLocation.lat.toFixed(5) + ', ' + userLocation.lng.toFixed(5) + '). Use this real-world location to identify the EXACT specific building or place at or very near these coordinates — do not guess a famous landmark from a different location just because it looks similar. If the location strongly suggests a specific known building, prefer that over a generic guess. ' + promptText;
+    }
+
     var payload = {
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 1000,
@@ -533,6 +573,7 @@ async function downloadCard() {
 }
 
 startCam();
+getLocation();
 </script>
 </body>
 </html>
