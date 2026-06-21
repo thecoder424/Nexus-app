@@ -40,6 +40,7 @@
   .br { bottom:14px; right:14px; border-width:0 2px 2px 0; border-radius:0 0 3px 0; }
   .scan { position:absolute; left:14px; right:14px; height:1px; background:linear-gradient(to right,transparent,#C9A84C,transparent); opacity:0.5; animation:scan 3s ease-in-out infinite; }
   @keyframes scan { 0%{top:14px;opacity:0} 10%{opacity:0.5} 90%{opacity:0.5} 100%{top:calc(100% - 14px);opacity:0} }
+  @keyframes tapPulse { 0%{transform:scale(1);opacity:1} 100%{transform:scale(1.6);opacity:0} }
 
   .cam-controls { padding:20px 28px 48px; display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
 
@@ -168,6 +169,12 @@
     <div class="vf">
       <video id="videoEl" autoplay playsinline muted></video>
       <img id="previewEl" alt="">
+      <div id="tapMarker" style="display:none; position:absolute; width:64px; height:64px; border:2.5px solid #C9A84C; border-radius:50%; pointer-events:none; transform:translate(-50%,-50%); box-shadow:0 0 0 4px rgba(201,168,76,0.15), 0 2px 12px rgba(0,0,0,0.3); z-index:5;">
+        <div style="position:absolute; inset:-2.5px; border:2.5px solid #C9A84C; border-radius:50%; animation:tapPulse 1.2s ease-out infinite;"></div>
+      </div>
+      <div id="tapHint" style="display:none; position:absolute; bottom:10px; left:0; right:0; text-align:center; z-index:5;">
+        <span style="font-family:'DM Mono',monospace; font-size:9px; letter-spacing:0.1em; color:#fff; background:rgba(0,0,0,0.55); padding:6px 12px; border-radius:20px; text-transform:uppercase;">Tap exactly what you mean</span>
+      </div>
       <div class="vf-hint" id="vfHint">
         <div class="ico">📷</div>
         <div class="txt">Point at any building,<br>object or landmark</div>
@@ -330,6 +337,8 @@ document.getElementById('fileIn').onchange = function(e) {
   r.readAsDataURL(f);
 };
 
+var tapPoint = null; // {xRatio, yRatio} normalized 0-1 relative to image
+
 function showPreview(src) {
   var p = document.getElementById('previewEl');
   p.src = src; p.classList.add('on');
@@ -339,11 +348,15 @@ function showPreview(src) {
   document.getElementById('uploadLabel').style.display = 'none';
   document.getElementById('goBtn').classList.add('on');
   document.getElementById('retakeBtn').classList.add('on');
-  document.getElementById('camHint').textContent = 'Tap "Identify This" to discover';
+  document.getElementById('camHint').textContent = 'Tap exactly what you mean, then hit Identify';
+  document.getElementById('tapHint').style.display = 'block';
+  tapPoint = null;
+  document.getElementById('tapMarker').style.display = 'none';
 }
 
 function retake() {
   captured = null;
+  tapPoint = null;
   var p = document.getElementById('previewEl');
   p.classList.remove('on'); p.src = '';
   document.getElementById('shutterBtn').style.display = '';
@@ -351,11 +364,29 @@ function retake() {
   document.getElementById('goBtn').classList.remove('on');
   document.getElementById('retakeBtn').classList.remove('on');
   document.getElementById('camHint').textContent = 'Tap shutter or upload a photo';
+  document.getElementById('tapHint').style.display = 'none';
+  document.getElementById('tapMarker').style.display = 'none';
   if (stream) document.getElementById('videoEl').classList.add('on');
   else document.getElementById('vfHint').style.display = '';
 }
 
 document.getElementById('retakeBtn').onclick = retake;
+
+// Tap-to-select: user taps the preview image to mark the exact subject
+document.getElementById('previewEl').addEventListener('click', function(e) {
+  if (!captured) return;
+  var img = e.currentTarget;
+  var rect = img.getBoundingClientRect();
+  var xRatio = (e.clientX - rect.left) / rect.width;
+  var yRatio = (e.clientY - rect.top) / rect.height;
+  tapPoint = { x: xRatio, y: yRatio };
+
+  var marker = document.getElementById('tapMarker');
+  marker.style.left = (e.clientX - rect.left) + 'px';
+  marker.style.top = (e.clientY - rect.top) + 'px';
+  marker.style.display = 'block';
+  document.getElementById('camHint').textContent = 'Got it — tap "Identify This"';
+});
 function newScan() { retake(); show('camSection'); }
 
 function compress(dataUrl, maxW, q) {
@@ -373,12 +404,48 @@ function compress(dataUrl, maxW, q) {
   });
 }
 
+// Crop a focused region around the tapped point so Claude only sees what the user meant.
+// Uses a window sized at ~55% of the shorter image dimension, centered on the tap, clamped to image bounds.
+function cropToTapPoint(dataUrl, point) {
+  return new Promise(function(res) {
+    var img = new Image();
+    img.onload = function() {
+      var iw = img.width, ih = img.height;
+      var windowSize = Math.round(Math.min(iw, ih) * 0.55);
+
+      var cx = point.x * iw;
+      var cy = point.y * ih;
+
+      var sx = Math.max(0, Math.min(iw - windowSize, cx - windowSize / 2));
+      var sy = Math.max(0, Math.min(ih - windowSize, cy - windowSize / 2));
+
+      var c = document.createElement('canvas');
+      c.width = windowSize; c.height = windowSize;
+      c.getContext('2d').drawImage(img, sx, sy, windowSize, windowSize, 0, 0, windowSize, windowSize);
+      res(c.toDataURL('image/jpeg', 0.85));
+    };
+    img.src = dataUrl;
+  });
+}
+
 document.getElementById('goBtn').onclick = async function() {
   if (!captured) return;
   show('loadSection');
   try {
-    var comp = await compress(captured, 512, 0.6);
+    var imageToSend = captured;
+    var usedTap = false;
+
+    if (tapPoint) {
+      imageToSend = await cropToTapPoint(captured, tapPoint);
+      usedTap = true;
+    }
+
+    var comp = await compress(imageToSend, 512, 0.6);
     var b64 = comp.split(',')[1];
+
+    var promptText = usedTap
+      ? 'The user tapped a specific spot in their photo to mark exactly what they want identified, and this image has been cropped tightly around that point. Identify the specific subject centered in this cropped image — be precise and specific (exact building name, exact product, etc), not a general scene description. Return ONLY raw JSON, no markdown, no backticks:\\n{"name":"Full name","location":"City/place or empty","tag1":"Category: Landmark Nature Art Urban Animal Food Product","tag2":"one word tag","tag3":"year/era or empty","description":"Start with: This is [name]. Then 2-3 sentences of key facts. If you are not fully certain of the exact identity, say so plainly instead of inventing details.","trivia":"Start with Wild fact: or Did you know: — one jaw-dropping fact, 1-2 sentences. Only include if you are confident it is accurate."}'
+      : 'Identify the single most prominent, central, or closest subject in this photo. If multiple buildings, objects, or items are visible, focus only on the one that is largest in frame, most centered, or clearly the main focal point — not the general scene. Be specific (e.g. name the exact building, not "a city street"). If you are not fully certain of the exact identity, say so plainly instead of inventing details. Return ONLY raw JSON, no markdown, no backticks:\\n{"name":"Full name","location":"City/place or empty","tag1":"Category: Landmark Nature Art Urban Animal Food Product","tag2":"one word tag","tag3":"year/era or empty","description":"Start with: This is [name]. Then 2-3 sentences of key facts.","trivia":"Start with Wild fact: or Did you know: — one jaw-dropping fact, 1-2 sentences. Only include if you are confident it is accurate."}';
 
     var payload = {
       model: 'claude-haiku-4-5-20251001',
@@ -387,7 +454,7 @@ document.getElementById('goBtn').onclick = async function() {
         role: 'user',
         content: [
           { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: b64 } },
-          { type: 'text', text: 'Identify this photo. Return ONLY raw JSON, no markdown, no backticks:\n{"name":"Full name","location":"City/place or empty","tag1":"Category: Landmark Nature Art Urban Animal Food Product","tag2":"one word tag","tag3":"year/era or empty","description":"Start with: This is [name]. Then 2-3 sentences of key facts.","trivia":"Start with Wild fact: or Did you know: — one jaw-dropping fact, 1-2 sentences."}' }
+          { type: 'text', text: promptText }
         ]
       }]
     };
