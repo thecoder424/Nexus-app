@@ -292,37 +292,105 @@
 <script>
 var WORKER = 'https://nexusworker.robel-8cd.workers.dev/';
 var captured = null;
-var userLocation = null; // {lat, lng, label} once resolved
-var locationStatus = 'idle'; // idle | requesting | granted | denied | unavailable
+var userLocation = null;
 
-function getLocation() {
-  if (locationStatus === 'granted' || locationStatus === 'requesting') return;
-  if (!navigator.geolocation) { locationStatus = 'unavailable'; return; }
+// Read GPS coordinates from photo EXIF data
+function getExifLocation(dataUrl) {
+  return new Promise(function(resolve) {
+    try {
+      // Convert base64 to binary
+      var base64 = dataUrl.split(',')[1];
+      var binary = atob(base64);
+      var bytes = new Uint8Array(binary.length);
+      for (var i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
 
-  locationStatus = 'requesting';
-  navigator.geolocation.getCurrentPosition(
-    async function(pos) {
-      var lat = pos.coords.latitude, lng = pos.coords.longitude;
-      var label = '';
-      try {
-        var r = await fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lng + '&zoom=18&addressdetails=1', {
-          headers: { 'Accept': 'application/json' }
-        });
-        var d = await r.json();
-        var a = d.address || {};
-        var parts = [a.house_number ? (a.house_number + ' ' + (a.road || '')) : a.road, a.neighbourhood || a.suburb, a.city || a.town, a.state].filter(Boolean);
-        label = parts.join(', ') || d.display_name || '';
-      } catch(e) {}
-      userLocation = { lat: lat, lng: lng, label: label };
-      locationStatus = 'granted';
-      var pill = document.getElementById('locPill');
-      if (pill) { pill.style.display = 'flex'; pill.querySelector('span').textContent = label || 'Location on'; }
-    },
-    function(err) {
-      locationStatus = 'denied';
-    },
-    { enableHighAccuracy: true, timeout: 8000, maximumAge: 300000 }
-  );
+      // Find EXIF GPS data in JPEG
+      var view = new DataView(bytes.buffer);
+
+      // Check JPEG header
+      if (view.getUint16(0) !== 0xFFD8) { resolve(null); return; }
+
+      var offset = 2;
+      while (offset < view.byteLength - 2) {
+        var marker = view.getUint16(offset);
+        if (marker === 0xFFE1) {
+          // APP1 marker — EXIF data
+          var exifOffset = offset + 4;
+          // Check for "Exif" header
+          if (view.getUint32(exifOffset) === 0x45786966 && view.getUint16(exifOffset + 4) === 0x0000) {
+            var tiffOffset = exifOffset + 6;
+            var littleEndian = view.getUint16(tiffOffset) === 0x4949;
+            var ifdOffset = tiffOffset + view.getUint32(tiffOffset + 4, littleEndian);
+            var numEntries = view.getUint16(ifdOffset, littleEndian);
+
+            var gpsIFDOffset = null;
+            for (var e = 0; e < numEntries; e++) {
+              var entryOffset = ifdOffset + 2 + e * 12;
+              var tag = view.getUint16(entryOffset, littleEndian);
+              if (tag === 0x8825) {
+                gpsIFDOffset = tiffOffset + view.getUint32(entryOffset + 8, littleEndian);
+                break;
+              }
+            }
+
+            if (!gpsIFDOffset) { resolve(null); return; }
+
+            var gpsEntries = view.getUint16(gpsIFDOffset, littleEndian);
+            var gpsData = {};
+            for (var g = 0; g < gpsEntries; g++) {
+              var gOffset = gpsIFDOffset + 2 + g * 12;
+              var gTag = view.getUint16(gOffset, littleEndian);
+              var gType = view.getUint16(gOffset + 2, littleEndian);
+              var gCount = view.getUint32(gOffset + 4, littleEndian);
+              var gValOffset = gOffset + 8;
+
+              if (gTag === 1 || gTag === 3) {
+                // N/S or E/W ref
+                gpsData[gTag] = String.fromCharCode(view.getUint8(gValOffset));
+              } else if (gTag === 2 || gTag === 4) {
+                // Lat or Lng — 3 rationals
+                var dataOffset = tiffOffset + view.getUint32(gValOffset, littleEndian);
+                var deg = view.getUint32(dataOffset, littleEndian) / view.getUint32(dataOffset + 4, littleEndian);
+                var min = view.getUint32(dataOffset + 8, littleEndian) / view.getUint32(dataOffset + 12, littleEndian);
+                var sec = view.getUint32(dataOffset + 16, littleEndian) / view.getUint32(dataOffset + 20, littleEndian);
+                gpsData[gTag] = deg + min / 60 + sec / 3600;
+              }
+            }
+
+            if (gpsData[2] && gpsData[4]) {
+              var lat = gpsData[1] === 'S' ? -gpsData[2] : gpsData[2];
+              var lng = gpsData[3] === 'W' ? -gpsData[4] : gpsData[4];
+              resolve({ lat: lat, lng: lng });
+              return;
+            }
+          }
+          break;
+        }
+        offset += 2 + view.getUint16(offset + 2);
+      }
+      resolve(null);
+    } catch(e) { resolve(null); }
+  });
+}
+
+// Reverse geocode GPS to readable address
+async function reverseGeocode(lat, lng) {
+  try {
+    var r = await fetch('https://nominatim.openstreetmap.org/reverse?format=json&lat=' + lat + '&lon=' + lng + '&zoom=18&addressdetails=1', {
+      headers: { 'Accept': 'application/json' }
+    });
+    var d = await r.json();
+    var a = d.address || {};
+    var parts = [
+      a.house_number ? (a.house_number + ' ' + (a.road || '')) : a.road,
+      a.neighbourhood || a.suburb,
+      a.city || a.town,
+      a.state
+    ].filter(Boolean);
+    return parts.join(', ') || d.display_name || '';
+  } catch(e) { return ''; }
 }
 var stream = null;
 var result = null;
@@ -393,6 +461,9 @@ function showPreview(src) {
 function retake() {
   captured = null;
   tapPoint = null;
+  userLocation = null;
+  var pill = document.getElementById('locPill');
+  if (pill) pill.style.display = 'none';
   var p = document.getElementById('previewEl');
   p.classList.remove('on'); p.src = '';
   document.getElementById('shutterBtn').style.display = '';
@@ -474,6 +545,18 @@ document.getElementById('goBtn').onclick = async function() {
     if (tapPoint) {
       imageToSend = await cropToTapPoint(captured, tapPoint);
       usedTap = true;
+    }
+
+    // Extract GPS from photo EXIF — where the photo was TAKEN, not where user is now
+    var exifCoords = await getExifLocation(captured);
+    if (exifCoords) {
+      var label = await reverseGeocode(exifCoords.lat, exifCoords.lng);
+      userLocation = { lat: exifCoords.lat, lng: exifCoords.lng, label: label };
+      var pill = document.getElementById('locPill');
+      if (pill && label) {
+        pill.style.display = 'flex';
+        pill.querySelector('span').textContent = label;
+      }
     }
 
     var comp = await compress(imageToSend, 512, 0.6);
@@ -574,7 +657,6 @@ async function downloadCard() {
 }
 
 startCam();
-getLocation();
 </script>
 </body>
 </html>
