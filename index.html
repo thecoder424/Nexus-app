@@ -94,7 +94,22 @@
   .card-desc { font-size:15px; color:#333; line-height:1.74; letter-spacing:-0.1px; margin-bottom:20px; }
   .fact-box { background:#0a0a0a; border-radius:14px; padding:16px 18px; margin-bottom:24px; }
   .fact-label { font-family:'DM Mono',monospace; font-size:9px; font-weight:600; letter-spacing:0.16em; color:#C9A84C; text-transform:uppercase; margin-bottom:8px; }
-  .fact-text { font-size:14px; color:#888; line-height:1.7; letter-spacing:-0.1px; }
+  .fact-text { font-size:14px; color:#888; line-height:1.7; letter-spacing:-0.1px; margin-bottom:14px; }
+
+  .fact-feedback { border-top:1px solid #1a1a1a; padding-top:12px; }
+  .fact-feedback-label { font-family:'DM Mono',monospace; font-size:8px; letter-spacing:0.14em; color:#333; text-transform:uppercase; margin-bottom:8px; }
+  .fact-feedback-btns { display:flex; gap:8px; }
+  .feedback-btn {
+    display:flex; align-items:center; gap:6px;
+    background:#161616; border:1px solid #222;
+    color:#555; font-size:11px; font-weight:500;
+    padding:7px 14px; border-radius:20px; cursor:pointer;
+    transition:all 0.2s ease; font-family:'Inter',sans-serif;
+  }
+  .feedback-btn:active { transform:scale(0.95); }
+  .feedback-btn.selected-up { background:#0d1f0d; border-color:#1a4a1a; color:#4ade80; }
+  .feedback-btn.selected-down { background:#1f0d0d; border-color:#4a1a1a; color:#f87171; }
+  .feedback-thanks { font-family:'DM Mono',monospace; font-size:9px; letter-spacing:0.1em; color:#333; text-transform:uppercase; text-align:center; padding-top:4px; display:none; }
 
   .share-wrap { padding:16px 22px 20px; border-top:1px solid #f0f0f0; }
   .share-lbl { font-size:9px; font-weight:600; letter-spacing:0.12em; color:#ccc; text-transform:uppercase; margin-bottom:14px; text-align:center; }
@@ -227,6 +242,19 @@
       <div class="fact-box">
         <div class="fact-label">🔥 Wild Fact</div>
         <div class="fact-text" id="cardFact"></div>
+        <div class="fact-feedback" id="factFeedback">
+          <div class="fact-feedback-label">Was this surprising?</div>
+          <div class="fact-feedback-btns">
+            <button class="feedback-btn" id="thumbsUp" onclick="rateFact('up')">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3H14z"/><path d="M7 22H4a2 2 0 01-2-2v-7a2 2 0 012-2h3"/></svg>
+              Yes
+            </button>
+            <button class="feedback-btn" id="thumbsDown" onclick="rateFact('down')">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 15v4a3 3 0 003 3l4-9V2H5.72a2 2 0 00-2 1.7l-1.38 9a2 2 0 002 2.3H10z"/><path d="M17 2h2.67A2.31 2.31 0 0122 4v7a2.31 2.31 0 01-2.33 2H17"/></svg>
+              Not really
+            </button>
+          </div>
+        </div>
       </div>
     </div>
     <div class="share-wrap">
@@ -562,9 +590,11 @@ document.getElementById('goBtn').onclick = async function() {
     var comp = await compress(imageToSend, 512, 0.6);
     var b64 = comp.split(',')[1];
 
+    var systemPrompt = 'You are the identification engine for Nexus, a visual discovery app. Your job is to identify anything a user points their camera at — buildings, landmarks, luxury goods, fashion brands, products, art, nature, food, or any object — and return a shareable discovery card. Follow these rules every time: RULE 1: Read any visible text, logos, monograms, or brand marks in the image first. These are always the strongest identification signal. An H on a blanket means Hermès. LV means Louis Vuitton. GG means Gucci. Always trust visible brand marks over visual patterns. RULE 2: Be specific not generic. Never say "geometric patterns on a textile" when you can say "Hermès Avalon blanket." Never say "a city streetscape" when you can say "the Flatiron Building." The user always wants to know exactly what they are looking at. RULE 3: Pick the most jaw-dropping, culturally significant fact — not the most historically accurate one. Celebrity deaths, scandals, shocking connections, world records, and surprising secrets beat dry historical facts every time. RULE 4: If you genuinely cannot identify something with confidence, say so clearly in the name field (e.g. "Unidentified Building, possibly early 20th century"). Never invent facts.';
+
     var promptText = usedTap
-      ? 'The user tapped a specific spot in their photo to mark exactly what they want identified, and this image has been cropped tightly around that point. Identify the specific subject centered in this cropped image — be precise and specific (exact building name, exact product, etc), not a general scene description. Return ONLY raw JSON, no markdown, no backticks:\\n{"name":"Full name","location":"City/place or empty","tag1":"Category: Landmark Nature Art Urban Animal Food Product","tag2":"one word tag","tag3":"year/era or empty","description":"Start with: This is [name]. Then 2-3 sentences of key facts. If you are not fully certain of the exact identity, say so plainly instead of inventing details.","trivia":"Start with Wild fact: or Did you know: — pick the single most surprising, jaw-dropping, or culturally significant fact about this subject. Prioritize famous events, celebrity connections, shocking history, scandals, or little-known secrets over generic historical facts. Make it the kind of fact that makes someone say WOW and immediately want to share it. 1-2 sentences. Only state facts you are confident are accurate."}'
-      : 'Identify the single most prominent, central, or closest subject in this photo. If multiple buildings, objects, or items are visible, focus only on the one that is largest in frame, most centered, or clearly the main focal point — not the general scene. Be specific (e.g. name the exact building, not "a city street"). If you are not fully certain of the exact identity, say so plainly instead of inventing details. Return ONLY raw JSON, no markdown, no backticks:\\n{"name":"Full name","location":"City/place or empty","tag1":"Category: Landmark Nature Art Urban Animal Food Product","tag2":"one word tag","tag3":"year/era or empty","description":"Start with: This is [name]. Then 2-3 sentences of key facts.","trivia":"Start with Wild fact: or Did you know: — pick the single most surprising, jaw-dropping, or culturally significant fact about this subject. Prioritize famous events, celebrity connections, shocking history, scandals, or little-known secrets over generic historical facts. Make it the kind of fact that makes someone say WOW and immediately want to share it. 1-2 sentences. Only state facts you are confident are accurate."}';
+      ? systemPrompt + ' The user tapped directly on their subject of interest and this image is cropped tightly around that point. Identify exactly what is centered in this crop. Return ONLY raw JSON, no markdown, no backticks: {"name":"Exact brand and product name, or exact place name","location":"City/neighborhood or empty","tag1":"One of: Landmark Art Nature Urban Animal Food Luxury Fashion Product","tag2":"one descriptive word","tag3":"year or era or empty","description":"Start with This is [name]. 2-3 sentences of key facts.","trivia":"The single most surprising or culturally significant fact. Celebrity connections, scandals, deaths, records, secrets. 1-2 sentences. Only state facts you are confident about."}'
+      : systemPrompt + ' Identify the single most prominent subject in this photo — the largest, most centered, or most clearly featured element. Return ONLY raw JSON, no markdown, no backticks: {"name":"Exact brand and product name, or exact place name","location":"City/neighborhood or empty","tag1":"One of: Landmark Art Nature Urban Animal Food Luxury Fashion Product","tag2":"one descriptive word","tag3":"year or era or empty","description":"Start with This is [name]. 2-3 sentences of key facts.","trivia":"The single most surprising or culturally significant fact. Celebrity connections, scandals, deaths, records, secrets. 1-2 sentences. Only state facts you are confident about."}';
 
 
     if (userLocation && userLocation.label) {
@@ -574,11 +604,14 @@ document.getElementById('goBtn').onclick = async function() {
     var payload = {
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 1000,
+      system: systemPrompt,
       messages: [{
         role: 'user',
         content: [
           { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: b64 } },
-          { type: 'text', text: promptText }
+          { type: 'text', text: usedTap
+            ? 'The user tapped directly on their subject and this image is cropped around that point. Identify exactly what is centered here. Return ONLY raw JSON: {"name":"Exact name","location":"City or empty","tag1":"Landmark Art Nature Urban Animal Food Luxury Fashion Product","tag2":"one word","tag3":"year or empty","description":"Start with This is [name]. 2-3 sentences.","trivia":"Most surprising culturally significant fact. 1-2 sentences. Only confident facts."}'
+            : 'Identify the most prominent subject. Return ONLY raw JSON: {"name":"Exact name","location":"City or empty","tag1":"Landmark Art Nature Urban Animal Food Luxury Fashion Product","tag2":"one word","tag3":"year or empty","description":"Start with This is [name]. 2-3 sentences.","trivia":"Most surprising culturally significant fact. 1-2 sentences. Only confident facts."}' }
         ]
       }]
     };
@@ -615,6 +648,10 @@ document.getElementById('goBtn').onclick = async function() {
     document.getElementById('scDesc').textContent = result.description || '';
     document.getElementById('scFact').textContent = result.trivia || '';
 
+    // Reset feedback
+    document.getElementById('thumbsUp').classList.remove('selected-up');
+    document.getElementById('thumbsDown').classList.remove('selected-down');
+
     show('cardSection');
 
   } catch(err) {
@@ -622,6 +659,26 @@ document.getElementById('goBtn').onclick = async function() {
     toast('Error: ' + err.message, 5000);
   }
 };
+
+function rateFact(rating) {
+  var up = document.getElementById('thumbsUp');
+  var down = document.getElementById('thumbsDown');
+  up.classList.remove('selected-up');
+  down.classList.remove('selected-down');
+  if (rating === 'up') {
+    up.classList.add('selected-up');
+    toast('Glad you liked it! 🔥', 2000);
+  } else {
+    down.classList.add('selected-down');
+    toast('Got it — we\'ll do better next time', 2000);
+  }
+  // Store locally for future use
+  try {
+    var key = 'nexus_feedback_' + Date.now();
+    var data = { rating: rating, fact: document.getElementById('cardFact').textContent, subject: document.getElementById('cardName').textContent, ts: Date.now() };
+    localStorage.setItem(key, JSON.stringify(data));
+  } catch(e) {}
+}
 
 function doShare(platform) {
   var txt = (result ? result.name : '') + '\n\n' + (result ? result.description : '') + '\n\n' + (result ? result.trivia : '') + '\n\n📍 Discovered on Nexus';
