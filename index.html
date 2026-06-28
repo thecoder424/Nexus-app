@@ -589,20 +589,21 @@ document.getElementById('goBtn').onclick = async function() {
       if (pill && geoLabel) { pill.style.display = 'flex'; pill.querySelector('span').textContent = geoLabel; }
     }
 
-    var systemPrompt = 'You are the identification engine for Nexus, a visual discovery app. Your job is to identify anything a user points their camera at and return a shareable discovery card. CRITICAL RULE 1 — READ TEXT EXACTLY: If there is any text visible in the image — a book title, brand name, street sign, logo, product label — read it character by character and use it verbatim. Never paraphrase or invent alternative titles. CRITICAL RULE 2 — TALK ABOUT THE SUBJECT NOT WHAT YOU SEE: Never say "this is a book cover" or "this is a photo of" or "this image shows." Always talk about the actual subject itself. CRITICAL RULE 3 — IDENTIFY THE WHOLE OBJECT: When a user taps to indicate a subject, identify the entire object — not just the part they tapped. If they tap a logo on a bag, identify the whole bag and brand. If they tap a letter on a building, identify the whole building. CRITICAL RULE 4 — BE SPECIFIC: Never return generic descriptions. Always return the exact name. CRITICAL RULE 5 — BEST WILD FACT: Celebrity connections, scandals, shocking revelations, world records beat dry facts every time. CRITICAL RULE 6 — ADMIT UNCERTAINTY: Never invent facts.';
+    var systemPrompt = 'You are the identification engine for Nexus, a visual discovery app. Your job is to identify anything a user points their camera at and return a shareable discovery card. CRITICAL RULE 1 — READ TEXT EXACTLY: If there is any text visible in the image — a book title, brand name, street sign, logo, product label — read it character by character and use it verbatim. Never paraphrase or invent alternative titles. CRITICAL RULE 2 — TALK ABOUT THE SUBJECT NOT WHAT YOU SEE: Never say "this is a book cover" or "this is a photo of" or "this image shows." Always talk about the actual subject itself. CRITICAL RULE 3 — IDENTIFY THE WHOLE OBJECT: When a user taps to indicate a subject, identify the entire object — not just the part they tapped. CRITICAL RULE 4 — BE SPECIFIC: Never return generic descriptions. Always return the exact name. CRITICAL RULE 5 — WEB SEARCH STRATEGY: When searching for facts, always search for "[subject name] shocking facts", "[subject name] celebrity", "[subject name] scandal", "[subject name] valuation", "[subject name] record", "[subject name] famous". You are looking for the kind of fact that makes someone say WOW — not product specs, not nutritional info, not technical details. A $500M valuation with 2 employees beats fiber content every time. A celebrity death beats an architectural style every time. A world record beats a founding date every time. CRITICAL RULE 6 — ADMIT UNCERTAINTY: If you genuinely cannot find a surprising fact even after searching, say so honestly rather than defaulting to boring facts.';
 
     var userMessage = tapHintText
-      ? tapHintText + ' Return ONLY raw JSON: {"name":"Exact name","location":"City or empty","tag1":"Landmark Art Nature Urban Animal Food Luxury Fashion Product","tag2":"one word","tag3":"year or empty","description":"Start with This is [name]. 2-3 sentences.","trivia":"Most surprising culturally significant fact. 1-2 sentences. Only confident facts."}'
-      : 'Identify the most prominent subject in this photo. Return ONLY raw JSON: {"name":"Exact name","location":"City or empty","tag1":"Landmark Art Nature Urban Animal Food Luxury Fashion Product","tag2":"one word","tag3":"year or empty","description":"Start with This is [name]. 2-3 sentences.","trivia":"Most surprising culturally significant fact. 1-2 sentences. Only confident facts."}';
+      ? tapHintText + ' First use web search to find surprising facts about the subject. Then return ONLY raw JSON: {"name":"Exact name","location":"City or empty","tag1":"Landmark Art Nature Urban Animal Food Luxury Fashion Product","tag2":"one word","tag3":"year or empty","description":"Start with This is [name]. 2-3 sentences.","trivia":"Most surprising culturally significant fact found from web search. 1-2 sentences. Only confident facts."}'
+      : 'Identify the most prominent subject in this photo. Use web search to find surprising or jaw-dropping facts about it. Return ONLY raw JSON: {"name":"Exact name","location":"City or empty","tag1":"Landmark Art Nature Urban Animal Food Luxury Fashion Product","tag2":"one word","tag3":"year or empty","description":"Start with This is [name]. 2-3 sentences.","trivia":"Most surprising culturally significant fact found from web search. 1-2 sentences. Only confident facts."}';
 
     if (userLocation && userLocation.label) {
       userMessage = 'LOCATION CONTEXT: This photo was taken near "' + userLocation.label + '". Use this to help identify specific buildings or places. ' + userMessage;
     }
 
     var payload = {
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 1000,
+      model: 'claude-sonnet-4-6',
+      max_tokens: 4000,
       system: systemPrompt,
+      tools: [{ type: 'web_search_20250305', name: 'web_search' }],
       messages: [{ role: 'user', content: [
         { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: b64 } },
         { type: 'text', text: userMessage }
@@ -620,7 +621,48 @@ document.getElementById('goBtn').onclick = async function() {
     var data = await resp.json();
     if (data.error) throw new Error(data.error);
 
-    var raw = data.content.map(function(b) { return b.text || ''; }).join('');
+    // Handle multi-turn web search — Claude may use tools before returning final JSON
+    var messages = payload.messages.slice();
+    var raw = '';
+    var maxTurns = 5;
+
+    while (maxTurns-- > 0) {
+      if (data.error) throw new Error(data.error);
+
+      var textBlocks = (data.content || []).filter(function(b) { return b.type === 'text'; });
+      var toolBlocks = (data.content || []).filter(function(b) { return b.type === 'tool_use'; });
+
+      // If there's a text block with JSON, we're done
+      var jsonBlock = textBlocks.find(function(b) { return b.text && b.text.includes('{'); });
+      if (jsonBlock) { raw = jsonBlock.text; break; }
+
+      // If stop reason is end_turn with no tool use, grab whatever text we have
+      if (data.stop_reason === 'end_turn' || toolBlocks.length === 0) {
+        raw = textBlocks.map(function(b) { return b.text || ''; }).join('');
+        break;
+      }
+
+      // Claude used a tool — send tool results back and continue
+      messages.push({ role: 'assistant', content: data.content });
+      var toolResults = toolBlocks.map(function(tb) {
+        return {
+          type: 'tool_result',
+          tool_use_id: tb.id,
+          content: JSON.stringify(tb.input || {})
+        };
+      });
+      messages.push({ role: 'user', content: toolResults });
+
+      var nextPayload = Object.assign({}, payload, { messages: messages });
+      var nextResp = await fetch(WORKER, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(nextPayload)
+      });
+      if (!nextResp.ok) throw new Error('HTTP ' + nextResp.status);
+      data = await nextResp.json();
+    }
+
     var m = raw.match(/\{[\s\S]*\}/);
     if (!m) throw new Error('No JSON in response');
     result = JSON.parse(m[0]);
