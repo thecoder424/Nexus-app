@@ -568,52 +568,45 @@ document.getElementById('goBtn').onclick = async function() {
   show('loadSection');
   try {
     var imageToSend = captured;
-    var usedTap = false;
+    var tapHintText = '';
 
     if (tapPoint) {
-      imageToSend = await cropToTapPoint(captured, tapPoint);
-      usedTap = true;
+      // Convert tap coordinates to a natural language description
+      var xDesc = tapPoint.x < 0.33 ? 'left' : tapPoint.x > 0.66 ? 'right' : 'center';
+      var yDesc = tapPoint.y < 0.33 ? 'top' : tapPoint.y > 0.66 ? 'bottom' : 'middle';
+      tapHintText = 'The user tapped the ' + yDesc + '-' + xDesc + ' area of the image to indicate what they want identified. Use this as a hint to focus on the main object in that area of the frame — but identify the WHOLE object, not just the spot they tapped. For example if they tap a logo on a coffee bag, identify the entire product, not just the logo.';
     }
+
+    var comp = await compress(imageToSend, 640, 0.7);
+    var b64 = comp.split(',')[1];
 
     // Extract GPS from photo EXIF — where the photo was TAKEN, not where user is now
     var exifCoords = await getExifLocation(captured);
     if (exifCoords) {
-      var label = await reverseGeocode(exifCoords.lat, exifCoords.lng);
-      userLocation = { lat: exifCoords.lat, lng: exifCoords.lng, label: label };
+      var geoLabel = await reverseGeocode(exifCoords.lat, exifCoords.lng);
+      userLocation = { lat: exifCoords.lat, lng: exifCoords.lng, label: geoLabel };
       var pill = document.getElementById('locPill');
-      if (pill && label) {
-        pill.style.display = 'flex';
-        pill.querySelector('span').textContent = label;
-      }
+      if (pill && geoLabel) { pill.style.display = 'flex'; pill.querySelector('span').textContent = geoLabel; }
     }
 
-    var comp = await compress(imageToSend, 512, 0.6);
-    var b64 = comp.split(',')[1];
+    var systemPrompt = 'You are the identification engine for Nexus, a visual discovery app. Your job is to identify anything a user points their camera at and return a shareable discovery card. CRITICAL RULE 1 — READ TEXT EXACTLY: If there is any text visible in the image — a book title, brand name, street sign, logo, product label — read it character by character and use it verbatim. Never paraphrase or invent alternative titles. CRITICAL RULE 2 — TALK ABOUT THE SUBJECT NOT WHAT YOU SEE: Never say "this is a book cover" or "this is a photo of" or "this image shows." Always talk about the actual subject itself. CRITICAL RULE 3 — IDENTIFY THE WHOLE OBJECT: When a user taps to indicate a subject, identify the entire object — not just the part they tapped. If they tap a logo on a bag, identify the whole bag and brand. If they tap a letter on a building, identify the whole building. CRITICAL RULE 4 — BE SPECIFIC: Never return generic descriptions. Always return the exact name. CRITICAL RULE 5 — BEST WILD FACT: Celebrity connections, scandals, shocking revelations, world records beat dry facts every time. CRITICAL RULE 6 — ADMIT UNCERTAINTY: Never invent facts.';
 
-    var systemPrompt = 'You are the identification engine for Nexus, a visual discovery app. Your job is to identify anything a user points their camera at and return a shareable discovery card. CRITICAL RULE 1 — READ TEXT EXACTLY: If there is any text visible in the image — a book title, brand name, street sign, logo, product label — read it character by character and use it verbatim. Never paraphrase or invent alternative titles. If the cover says "The Dictator\'s Handbook" that is the exact name. If a label says "Hermès" that is the brand. CRITICAL RULE 2 — TALK ABOUT THE SUBJECT NOT WHAT YOU SEE: Never say "this is a book cover" or "this is a photo of" or "this image shows." Always talk about the actual subject itself. Say "The Dictator\'s Handbook is a book by..." not "This is a cover of a book called..." CRITICAL RULE 3 — BE SPECIFIC: Never return generic descriptions. Always return the exact name of what is in the image. CRITICAL RULE 4 — BEST WILD FACT: Pick the most surprising, jaw-dropping, culturally significant fact about the subject — not a description of what you see. Celebrity connections, scandals, shocking revelations, world records. Never dry summaries. CRITICAL RULE 5 — ADMIT UNCERTAINTY: If you genuinely cannot identify something, say so in the name field. Never invent facts.';
-
-    var promptText = usedTap
-      ? systemPrompt + ' The user tapped directly on their subject of interest and this image is cropped tightly around that point. Identify exactly what is centered in this crop. Return ONLY raw JSON, no markdown, no backticks: {"name":"Exact brand and product name, or exact place name","location":"City/neighborhood or empty","tag1":"One of: Landmark Art Nature Urban Animal Food Luxury Fashion Product","tag2":"one descriptive word","tag3":"year or era or empty","description":"Start with This is [name]. 2-3 sentences of key facts.","trivia":"The single most surprising or culturally significant fact. Celebrity connections, scandals, deaths, records, secrets. 1-2 sentences. Only state facts you are confident about."}'
-      : systemPrompt + ' Identify the single most prominent subject in this photo — the largest, most centered, or most clearly featured element. Return ONLY raw JSON, no markdown, no backticks: {"name":"Exact brand and product name, or exact place name","location":"City/neighborhood or empty","tag1":"One of: Landmark Art Nature Urban Animal Food Luxury Fashion Product","tag2":"one descriptive word","tag3":"year or era or empty","description":"Start with This is [name]. 2-3 sentences of key facts.","trivia":"The single most surprising or culturally significant fact. Celebrity connections, scandals, deaths, records, secrets. 1-2 sentences. Only state facts you are confident about."}';
-
+    var userMessage = tapHintText
+      ? tapHintText + ' Return ONLY raw JSON: {"name":"Exact name","location":"City or empty","tag1":"Landmark Art Nature Urban Animal Food Luxury Fashion Product","tag2":"one word","tag3":"year or empty","description":"Start with This is [name]. 2-3 sentences.","trivia":"Most surprising culturally significant fact. 1-2 sentences. Only confident facts."}'
+      : 'Identify the most prominent subject in this photo. Return ONLY raw JSON: {"name":"Exact name","location":"City or empty","tag1":"Landmark Art Nature Urban Animal Food Luxury Fashion Product","tag2":"one word","tag3":"year or empty","description":"Start with This is [name]. 2-3 sentences.","trivia":"Most surprising culturally significant fact. 1-2 sentences. Only confident facts."}';
 
     if (userLocation && userLocation.label) {
-      promptText = 'IMPORTANT CONTEXT: This photo was taken near "' + userLocation.label + '" (GPS: ' + userLocation.lat.toFixed(5) + ', ' + userLocation.lng.toFixed(5) + '). Use this real-world location to identify the EXACT specific building or place at or very near these coordinates — do not guess a famous landmark from a different location just because it looks similar. If the location strongly suggests a specific known building, prefer that over a generic guess. ' + promptText;
+      userMessage = 'LOCATION CONTEXT: This photo was taken near "' + userLocation.label + '". Use this to help identify specific buildings or places. ' + userMessage;
     }
 
     var payload = {
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 1000,
       system: systemPrompt,
-      messages: [{
-        role: 'user',
-        content: [
-          { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: b64 } },
-          { type: 'text', text: usedTap
-            ? 'The user tapped directly on their subject and this image is cropped around that point. Identify exactly what is centered here. Return ONLY raw JSON: {"name":"Exact name","location":"City or empty","tag1":"Landmark Art Nature Urban Animal Food Luxury Fashion Product","tag2":"one word","tag3":"year or empty","description":"Start with This is [name]. 2-3 sentences.","trivia":"Most surprising culturally significant fact. 1-2 sentences. Only confident facts."}'
-            : 'Identify the most prominent subject. Return ONLY raw JSON: {"name":"Exact name","location":"City or empty","tag1":"Landmark Art Nature Urban Animal Food Luxury Fashion Product","tag2":"one word","tag3":"year or empty","description":"Start with This is [name]. 2-3 sentences.","trivia":"Most surprising culturally significant fact. 1-2 sentences. Only confident facts."}' }
-        ]
-      }]
+      messages: [{ role: 'user', content: [
+        { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: b64 } },
+        { type: 'text', text: userMessage }
+      ]}]
     };
 
     var resp = await fetch(WORKER, {
